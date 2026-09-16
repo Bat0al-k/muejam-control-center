@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, KeyboardEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const OTP_LENGTH = 6;
