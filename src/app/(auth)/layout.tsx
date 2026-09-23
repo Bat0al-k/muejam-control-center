@@ -19,7 +19,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                 </div>
 
                 {/* Spacer */}
-                <div style={{ flex: 1 }} />
+                {/* <div style={{ flex: 1 }} /> */}
+                <div className="auth-panel__content">
+                    <h1>Begin your<br />journey.</h1>
+                </div>
 
                 {/* Footer */}
                 <footer className="auth-panel__footer">

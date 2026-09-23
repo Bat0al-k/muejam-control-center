@@ -60,6 +60,16 @@
 
 // for make the root page appear
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+    redirects: async () => {
+        return [
+            {
+                source: "/",
+                destination: "/login",
+                permanent: false,
+            },
+        ];
+    },
+};
 
 export default nextConfig;
