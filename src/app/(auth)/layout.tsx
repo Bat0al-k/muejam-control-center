@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import "./auth.css";
-
+import Image from "next/image";
 interface AuthLayoutProps {
     children: ReactNode;
 }
@@ -61,7 +61,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                             fill="none"
                         />
                     </svg> */}
-                    <img src="/icons/Muejam logo.svg" alt="Muejam" />
+                    <Image src="/icons/Muejam-logo.svg" alt="Muejam" />
                 </div>
 
                 {/* Page content */}
