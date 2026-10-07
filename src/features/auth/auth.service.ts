@@ -95,10 +95,19 @@ export async function authenticateUser(
      *
      * default_role is kept as a fallback.
      */
-    const role =
-        user.role?.role ||
-        user.default_role ||
-        "author";
+    // const role =
+    //     user.role?.role ||
+    //     user.default_role ||
+    //     "author";
+
+    const role = user.role?.role || user.default_role;
+    if (
+        role !== "admin" &&
+        role !== "sub_admin" &&
+        role !== "author"
+    ) {
+        throw new Error("This account has an invalid role.");
+    }
 
     return {
         id: user.id,
@@ -107,6 +116,7 @@ export async function authenticateUser(
         emailVerified: user.email_verified,
         lastSeen: user.last_seen,
         disabled: user.disabled,
-        role: role as AuthUser["role"],
+        // role: role as AuthUser["role"],
+        role,
     };
 }

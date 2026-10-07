@@ -54,20 +54,20 @@ interface UpdatePendingOtpResponse {
     };
 }
 
-interface CompleteRegistrationResponse {
-    insert_auth_users_one: {
-        id: string;
-        email: string;
-        display_name: string | null;
-        email_verified: boolean;
-        default_role: string | null;
-        disabled: boolean;
-    };
+// interface CompleteRegistrationResponse {
+//     insert_auth_users_one: {
+//         id: string;
+//         email: string;
+//         display_name: string | null;
+//         email_verified: boolean;
+//         default_role: string | null;
+//         disabled: boolean;
+//     };
 
-    delete_auth_pending_registrations_by_pk: {
-        id: string;
-    };
-}
+//     delete_auth_pending_registrations_by_pk: {
+//         id: string;
+//     };
+// }
 
 export interface RegisterResult {
     id: string;
@@ -221,6 +221,142 @@ export async function registerUser(
  * completed pending registration, then removes
  * the pending registration.
  */
+
+
+// export async function completeRegistration(
+//     email: string
+// ): Promise<{
+//     id: string;
+//     email: string;
+// }> {
+//     const normalizedEmail =
+//         email.trim().toLowerCase();
+
+//     if (!normalizedEmail) {
+//         throw new Error("Email is required.");
+//     }
+
+//     /*
+//      * Get the pending registration.
+//      */
+//     const data =
+//         await executeGraphQL<GetPendingRegistrationResponse>(
+//             GET_PENDING_REGISTRATION_BY_EMAIL,
+//             {
+//                 email: normalizedEmail,
+//             }
+//         );
+
+//     const pendingRegistration =
+//         data.auth_pending_registrations[0];
+
+//     if (!pendingRegistration) {
+//         throw new Error(
+//             "Registration session not found."
+//         );
+//     }
+
+//     /*
+//      * Make sure the registration has not expired.
+//      */
+//     const expiresAt =
+//         new Date(
+//             pendingRegistration.expires_at
+//         ).getTime();
+
+//     if (
+//         Number.isNaN(expiresAt) ||
+//         Date.now() >= expiresAt
+//     ) {
+//         throw new Error(
+//             "This registration has expired. Please start again."
+//         );
+//     }
+
+//     /*
+//      * Email must be verified.
+//      */
+//     if (!pendingRegistration.email_verified) {
+//         throw new Error(
+//             "Please verify your email before completing registration."
+//         );
+//     }
+
+//     /*
+//      * Username is required.
+//      */
+//     if (!pendingRegistration.username) {
+//         throw new Error(
+//             "Username is missing."
+//         );
+//     }
+
+//     /*
+//      * Password hash must already exist.
+//      */
+//     if (!pendingRegistration.password_hash) {
+//         throw new Error(
+//             "Password has not been set."
+//         );
+//     }
+
+//     /*
+//      * Create the real account and delete the
+//      * temporary registration in the same
+//      * GraphQL mutation request.
+//      */
+//     const COMPLETE_REGISTRATION = `
+//         mutation CompleteRegistration(
+//             $user: auth_users_insert_input!
+//             $pendingId: uuid!
+//         ) {
+//             insert_auth_users_one(
+//                 object: $user
+//             ) {
+//                 id
+//                 email
+//                 display_name
+//                 email_verified
+//                 default_role
+//                 disabled
+//             }
+
+//             delete_auth_pending_registrations_by_pk(
+//                 id: $pendingId
+//             ) {
+//                 id
+//             }
+//         }
+//     `;
+
+//     const result =
+//         await executeGraphQL<CompleteRegistrationResponse>(
+//             COMPLETE_REGISTRATION,
+//             {
+//                 user: {
+//                     email: pendingRegistration.email,
+//                     display_name: pendingRegistration.username,
+//                     password_hash:
+//                         pendingRegistration.password_hash,
+//                     email_verified: true,
+//                     default_role: "author",
+//                     disabled: false,
+//                     locale: "en"
+//                 },
+//                 pendingId:
+//                     pendingRegistration.id,
+//             }
+//         );
+
+//     return {
+//         id:
+//             result.insert_auth_users_one.id,
+//         email:
+//             result.insert_auth_users_one.email,
+//     };
+// }
+
+
 export async function completeRegistration(
     email: string
 ): Promise<{
@@ -299,14 +435,12 @@ export async function completeRegistration(
     }
 
     /*
-     * Create the real account and delete the
-     * temporary registration in the same
-     * GraphQL mutation request.
+     * Step 1:
+     * Create the real auth.users account.
      */
-    const COMPLETE_REGISTRATION = `
-        mutation CompleteRegistration(
+    const CREATE_USER = `
+        mutation CreateUser(
             $user: auth_users_insert_input!
-            $pendingId: uuid!
         ) {
             insert_auth_users_one(
                 object: $user
@@ -318,38 +452,111 @@ export async function completeRegistration(
                 default_role
                 disabled
             }
-
-            delete_auth_pending_registrations_by_pk(
-                id: $pendingId
-            ) {
-                id
-            }
         }
     `;
 
-    const result =
-        await executeGraphQL<CompleteRegistrationResponse>(
-            COMPLETE_REGISTRATION,
+    const userResult =
+        await executeGraphQL<{
+            insert_auth_users_one: {
+                id: string;
+                email: string;
+                display_name: string | null;
+                email_verified: boolean;
+                default_role: string | null;
+                disabled: boolean;
+            };
+        }>(
+            CREATE_USER,
             {
                 user: {
                     email: pendingRegistration.email,
-                    display_name: pendingRegistration.username,
+                    display_name:
+                        pendingRegistration.username,
                     password_hash:
                         pendingRegistration.password_hash,
                     email_verified: true,
                     default_role: "author",
                     disabled: false,
-                    locale: "en"
+                    locale: "en",
                 },
-                pendingId:
-                    pendingRegistration.id,
             }
         );
 
+    const newUser =
+        userResult.insert_auth_users_one;
+
+    /*
+     * Step 2:
+     * Create one Author profile for the new user.
+     *
+     * The same profile will be used for all
+     * books created by this Author.
+     */
+    const CREATE_AUTHOR = `
+        mutation CreateAuthor(
+            $author: libaray_Autor_insert_input!
+        ) {
+            insert_libaray_Autor_one(
+                object: $author
+            ) {
+                id
+                name
+                user_id
+            }
+        }
+    `;
+
+    await executeGraphQL<{
+        insert_libaray_Autor_one: {
+            id: string;
+            name: string;
+            user_id: string;
+        };
+    }>(
+        CREATE_AUTHOR,
+        {
+            author: {
+                name: pendingRegistration.username,
+                bio: "",
+                image_url: null,
+                book_num: 0,
+                Category_Id: null,
+                user_id: newUser.id,
+                followers_num: 0,
+            },
+        }
+    );
+
+    /*
+     * Step 3:
+     * Remove the temporary registration
+     * after the real user and Author profile
+     * have been created successfully.
+     */
+    await executeGraphQL<{
+        delete_auth_pending_registrations_by_pk: {
+            id: string;
+        };
+    }>(
+        `
+            mutation DeletePendingRegistration(
+                $pendingId: uuid!
+            ) {
+                delete_auth_pending_registrations_by_pk(
+                    id: $pendingId
+                ) {
+                    id
+                }
+            }
+        `,
+        {
+            pendingId:
+                pendingRegistration.id,
+        }
+    );
+
     return {
-        id:
-            result.insert_auth_users_one.id,
-        email:
-            result.insert_auth_users_one.email,
+        id: newUser.id,
+        email: newUser.email,
     };
 }

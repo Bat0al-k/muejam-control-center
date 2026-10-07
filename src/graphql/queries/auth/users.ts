@@ -1,4 +1,3 @@
-
 export const GET_AUTH_USER_BY_EMAIL = `
     query GetAuthUserByEmail($email: citext!) {
         auth_users(where: { email: { _eq: $email } }, limit: 1) {

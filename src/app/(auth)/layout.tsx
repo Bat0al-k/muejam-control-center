@@ -61,7 +61,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                             fill="none"
                         />
                     </svg> */}
-                    <Image src="/icons/Muejam-Logo.svg" alt="Muejam" />
+                    <Image src="/icons/Muejam-Logo.svg" alt="Muejam" width={100} height={100} />
                 </div>
 
                 {/* Page content */}

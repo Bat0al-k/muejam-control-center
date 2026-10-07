@@ -1,6 +1,6 @@
 export type AuthRole =
-    | "developer"
     | "admin"
+    | "sub_admin"
     | "author"
 // | "user"
 // | "anonymous"
