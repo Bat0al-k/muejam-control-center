@@ -18,9 +18,15 @@ import {
   FiRepeat,
   FiLogOut,
   FiCheck,
+  FiX,
 } from "react-icons/fi";
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { openDrawer, showToast } = useStudio();
@@ -38,6 +44,12 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (onClose) onClose();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const studioNavItems = [
     { label: "Studio Overview", href: "/dashboard/studio", icon: FiActivity },
     { label: "Studio Users", href: "/dashboard/studio/users", icon: FiUsers },
@@ -53,27 +65,32 @@ export function Sidebar() {
     { label: "API & Webhooks", href: "#api", icon: FiTerminal, action: () => openDrawer({ type: "serviceHealth", serviceId: "webhooks" }) },
   ];
 
-  return (
-    <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col justify-between h-screen sticky top-0 shrink-0 z-40 select-none">
+  const sidebarContent = (
+    <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col justify-between h-full select-none">
       {/* Top Part: Brand Logo + Workspace Box + Nav Links */}
-      <div className="flex flex-col overflow-y-auto">
+      <div className="flex flex-col overflow-y-auto flex-1">
         {/* Brand Header */}
-        <div className="px-6 py-5 border-b border-[#F0F0F2] flex items-center gap-2.5">
-          {/* Logo mark styled to match screenshot */}
+        <div className="px-6 py-5 border-b border-[#F0F0F2] flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-1.5">
-            {/* <span className="w-2.5 h-6 rounded-full bg-[#E8785A]" />
-            <span className="w-2.5 h-4 rounded-full bg-[#111111]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#E8785A]" /> */}
-
             <Image src="/icons/Muejam.svg" alt="Logo" width={25} height={20} />
           </div>
           <span className="text-2xl font-black tracking-tight font-syne text-[#111111]">
             Muejam<sup className="text-[11px] font-normal ml-0.5 mb-4">©</sup>
             <hr className="bg-[#111111] text-black h-1.5 w-20" />
           </span>
+          {/* Close button — mobile only */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden ml-auto p-1.5 rounded-lg hover:bg-[#F3F4F6] text-[#6B7280] transition-colors"
+              aria-label="Close sidebar"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
-        {/* Studio Mode / Workspace Box (Instruction #27: Clickable to Environment Drawer) */}
+        {/* Studio Mode / Workspace Box */}
         <div className="p-3">
           <button
             onClick={() => openDrawer({ type: "environment" })}
@@ -171,7 +188,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom: Role Developer Box (Instruction #28: Popover) */}
+      {/* Bottom: Role Developer Box */}
       <div className="p-3 border-t border-[#F0F0F2] relative" ref={devPopoverRef}>
         <button
           onClick={() => setDevPopoverOpen(!devPopoverOpen)}
@@ -237,5 +254,32 @@ export function Sidebar() {
         )}
       </div>
     </aside>
+  );
+
+  // Desktop: sticky sidebar
+  // Mobile: slide-in drawer with overlay
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen lg:z-40">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay */}
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* Drawer */}
+          <div className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden flex flex-col shadow-2xl animate-slide-in">
+            {sidebarContent}
+          </div>
+        </>
+      )}
+    </>
   );
 }

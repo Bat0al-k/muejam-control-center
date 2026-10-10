@@ -5,20 +5,34 @@ import { ProductSwitcher } from "./ProductSwitcher";
 import { NotificationMenu } from "./NotificationMenu";
 import { UserMenu } from "./UserMenu";
 import { SearchPalette } from "./SearchPalette";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiMenu } from "react-icons/fi";
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onOpenSidebar?: () => void;
+}
+
+export function DashboardHeader({ onOpenSidebar }: DashboardHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
     <>
       <header className="h-16 border-b border-[#E5E7EB] bg-white px-4 sm:px-8 flex items-center justify-between gap-4 sticky top-0 z-30">
-        {/* Left: Product Switcher */}
-        <div className="flex items-center gap-4">
+        {/* Left: Hamburger (mobile) + Product Switcher */}
+        <div className="flex items-center gap-3">
+          {/* Hamburger button — mobile only */}
+          {onOpenSidebar && (
+            <button
+              onClick={onOpenSidebar}
+              className="lg:hidden p-2 rounded-xl hover:bg-[#F3F4F6] text-[#374151] transition-colors"
+              aria-label="Open navigation"
+            >
+              <FiMenu className="w-5 h-5" />
+            </button>
+          )}
           <ProductSwitcher />
         </div>
 
-        {/* Center: Search Bar Trigger */}
+        {/* Center/Right: Search + Notifications + Profile */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 max-w-md hidden md:block">
             <button
@@ -35,8 +49,17 @@ export function DashboardHeader() {
             </button>
           </div>
 
+          {/* Mobile search icon */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden p-2 rounded-xl hover:bg-[#F3F4F6] text-[#6B7280] transition-colors"
+            aria-label="Search"
+          >
+            <FiSearch className="w-5 h-5" />
+          </button>
+
           {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <NotificationMenu />
             <UserMenu />
           </div>

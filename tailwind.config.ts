@@ -9,6 +9,11 @@ const config: Config = {
   darkMode: "class",
   theme: {
     extend: {
+      // ── Breakpoints ───────────────────────────────────────────────────────
+      screens: {
+        xs: "475px",
+      },
+
       // ── Brand Colors ──────────────────────────────────────────────────────
       colors: {
         brand: {
@@ -54,6 +59,7 @@ const config: Config = {
       animation: {
         "fade-in":  "fade-in 0.2s ease-out",
         "slide-in": "slide-in 0.25s ease-out",
+        "slide-in-left": "slide-in 0.22s ease-out",
       },
 
       // ── Border Radius ─────────────────────────────────────────────────────

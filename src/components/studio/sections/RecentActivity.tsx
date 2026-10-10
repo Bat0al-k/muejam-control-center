@@ -141,10 +141,10 @@ export function RecentActivity() {
                 onClick={() =>
                   openDrawer({ type: "activityDetails", activityId: act.id })
                 }
-                className="group rounded-xl w-full p-4 flex items-center justify-between text-left bg-[#006A61]/5 hover:bg-[#006A61]/10 transition-colors cursor-pointer"
+                className="group rounded-xl w-full p-3 sm:p-4 flex items-start sm:items-center justify-between text-left bg-[#006A61]/5 hover:bg-[#006A61]/10 transition-colors cursor-pointer gap-3"
               >
                 {/* Left: Avatar & Info */}
-                <div className="flex items-center gap-3 min-w-0 pr-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Avatar Icon */}
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${act.isStripe
@@ -159,7 +159,7 @@ export function RecentActivity() {
                     )}
                   </div>
 
-                  <div className="space-y-0.5 min-w-0">
+                  <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-xs text-[#111111] group-hover:text-[#E8785A] transition-colors">
                         {act.userName}
@@ -171,11 +171,22 @@ export function RecentActivity() {
                     <p className="text-xs text-[#6B7280] truncate">
                       {act.description}
                     </p>
+                    {/* Credits / time visible inline on mobile */}
+                    <div className="flex items-center gap-2 sm:hidden pt-0.5">
+                      {act.eventType === "Transactions" ? (
+                        <span className="text-[11px] font-mono font-bold text-[#059669]">{act.details}</span>
+                      ) : act.eventType === "Credits" ? (
+                        <span className={`text-[11px] font-mono font-bold ${act.creditsChange > 0 ? "text-[#059669]" : "text-[#E8785A]"}`}>
+                          {act.creditsChange > 0 ? "+" : ""}{act.creditsChange.toLocaleString()} cr
+                        </span>
+                      ) : null}
+                      <span className="text-[11px] text-[#9CA3AF] font-mono">{act.timeAgo}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: Credits Change & Time */}
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Right: Credits Change & Time — hidden on mobile (shown inline above) */}
+                <div className="hidden sm:flex items-center gap-3 shrink-0">
                   <div className="text-right space-y-0.5">
                     {act.eventType === "Transactions" ? (
                       <div className="text-xs font-mono font-bold text-[#059669]">
@@ -200,6 +211,9 @@ export function RecentActivity() {
 
                   <FiChevronRight className="w-4 h-4 text-[#D1D5DB] group-hover:text-[#111111] group-hover:translate-x-0.5 transition-all" />
                 </div>
+
+                {/* Arrow icon on mobile */}
+                <FiChevronRight className="sm:hidden w-4 h-4 text-[#D1D5DB] group-hover:text-[#111111] shrink-0 mt-2" />
               </button>
             );
           })
