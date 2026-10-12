@@ -1,12 +1,12 @@
-// permission checking pages for authorized users 
-import { requireAuth } from "@/lib/server-auth";
+import { requirePermission } from "@/lib/server-auth";
+import { PERMISSIONS } from "@/features/auth/permissions";
 
 export default async function TestAuthPage() {
-    const auth = await requireAuth();
+    const auth = await requirePermission(PERMISSIONS.ROLES_MANAGE);
 
     return (
         <main style={{ padding: "2rem" }}>
-            <h1>Auth Test</h1>
+            <h1>Team & Permissions (Dev Only)</h1>
 
             <p>User ID: {auth.userId}</p>
             <p>Role: {auth.role}</p>

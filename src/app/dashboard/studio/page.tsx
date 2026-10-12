@@ -1,15 +1,17 @@
-import { requirePermission } from "@/lib/server-auth";
+import { getCurrentAuth, hasPermission } from "@/lib/server-auth";
 import { PERMISSIONS } from "@/features/auth/permissions";
 import { StudioConsole } from "@/components/studio/StudioConsole";
+import { redirect } from "next/navigation";
 
 export default async function StudioPage() {
-  try {
-    await requirePermission(PERMISSIONS.STUDIO_VIEW);
-  } catch (err) {
-    // In dev mode allow direct preview if token cookie is not present
+  const auth = await getCurrentAuth();
+
+  if (!auth) {
     if (process.env.NODE_ENV !== "development") {
-      throw err;
+      redirect("/login");
     }
+  } else if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
+    redirect("/unauthorized");
   }
 
   return <StudioConsole />;

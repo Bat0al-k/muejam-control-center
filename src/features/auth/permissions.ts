@@ -15,6 +15,9 @@ export const PERMISSIONS = {
     BOOKS_REJECT: "books:reject",
     BOOKS_REQUEST_EDITS: "books:request-edits",
 
+    // Library
+    LIBRARY_VIEW: "library:view",
+
     // Studio
     STUDIO_VIEW: "studio:view",
     STUDIO_USAGE_VIEW: "studio:usage-view",
@@ -37,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<
     ) as Permission[],
 
     [USER_ROLES.ADMIN]: [
+        PERMISSIONS.LIBRARY_VIEW,
         PERMISSIONS.BOOKS_VIEW_ALL,
         PERMISSIONS.BOOKS_REVIEW,
         PERMISSIONS.BOOKS_APPROVE,
@@ -46,8 +50,17 @@ export const ROLE_PERMISSIONS: Record<
     ],
 
     [USER_ROLES.AUTHOR]: [
+        PERMISSIONS.LIBRARY_VIEW,
         PERMISSIONS.BOOKS_VIEW_OWN,
         PERMISSIONS.BOOKS_UPLOAD,
         PERMISSIONS.BOOKS_EDIT_OWN,
     ],
 };
+
+export function canAccessStudio(role: UserRole): boolean {
+    return ROLE_PERMISSIONS[role].includes(PERMISSIONS.STUDIO_VIEW);
+}
+
+export function canAccessLibrary(role: UserRole): boolean {
+    return ROLE_PERMISSIONS[role].includes(PERMISSIONS.LIBRARY_VIEW);
+}

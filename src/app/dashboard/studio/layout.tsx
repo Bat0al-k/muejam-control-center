@@ -1,32 +1,22 @@
-"use client";
+import { getCurrentAuth, hasPermission } from "@/lib/server-auth";
+import { PERMISSIONS } from "@/features/auth/permissions";
+import { redirect } from "next/navigation";
+import { StudioLayoutClient } from "./StudioLayoutClient";
 
-import React, { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { StudioProvider } from "@/features/studio/context";
-
-export default function StudioLayout({
+export default async function StudioLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const auth = await getCurrentAuth();
 
-  return (
-    <StudioProvider>
-      <div className="flex min-h-screen bg-[#FAF8F5] text-[#111111] antialiased">
-        {/* Left Sidebar */}
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+  if (!auth) {
+    if (process.env.NODE_ENV !== "development") {
+      redirect("/login");
+    }
+  } else if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
+    redirect("/unauthorized");
+  }
 
-        {/* Right Main Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <DashboardHeader onOpenSidebar={() => setSidebarOpen(true)} />
-
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            {children}
-          </main>
-        </div>
-      </div>
-    </StudioProvider>
-  );
+  return <StudioLayoutClient>{children}</StudioLayoutClient>;
 }
