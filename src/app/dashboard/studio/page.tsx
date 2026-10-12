@@ -7,10 +7,10 @@ export default async function StudioPage() {
   const auth = await getCurrentAuth();
 
   if (!auth) {
-    if (process.env.NODE_ENV !== "development") {
-      redirect("/login");
-    }
-  } else if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
     redirect("/unauthorized");
   }
 

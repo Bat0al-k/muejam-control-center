@@ -5,6 +5,8 @@ import { useStudio } from "@/features/studio/context";
 import { useRouter } from "next/navigation";
 import { FiChevronDown, FiUser, FiSettings, FiLogOut, FiShield } from "react-icons/fi";
 
+import { logout } from "@/features/auth/auth.utils";
+
 export function UserMenu() {
   const { showToast } = useStudio();
   const [isOpen, setIsOpen] = useState(false);
@@ -21,9 +23,9 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     showToast("info", "Signing out of Muejam Control Center...");
-    router.push("/login");
+    await logout();
   };
 
   return (

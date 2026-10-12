@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useStudio } from "@/features/studio/context";
+import { logout } from "@/features/auth/auth.utils";
 import {
   FiActivity,
   FiUsers,
@@ -28,7 +29,6 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { openDrawer, showToast } = useStudio();
 
   const [devPopoverOpen, setDevPopoverOpen] = useState(false);
@@ -240,11 +240,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             <div className="pt-2">
               <button
-                onClick={() => {
+                onClick={async () => {
                   setDevPopoverOpen(false);
-                  router.push("/login");
+                  await logout();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
               >
                 <FiLogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>

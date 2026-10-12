@@ -10,11 +10,24 @@ export default async function StudioLayout({
 }) {
   const auth = await getCurrentAuth();
 
+  //   if (!auth) {
+  //     if (process.env.NODE_ENV !== "development") {
+  //     redirect("/login");
+  //   }
+
+  //   if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
+  //     redirect("/unauthorized");
+  //   }
+
+  //   return <StudioLayoutClient>{children}</StudioLayoutClient>;
+  // }
+
+
   if (!auth) {
-    if (process.env.NODE_ENV !== "development") {
-      redirect("/login");
-    }
-  } else if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(auth.role, PERMISSIONS.STUDIO_VIEW)) {
     redirect("/unauthorized");
   }
 

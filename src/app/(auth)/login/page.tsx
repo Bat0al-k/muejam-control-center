@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import Link from "next/link";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,16 @@ export default function LoginPage() {
     const [rememberMe, setRememberMe] = useState(true);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        // Prevent navigating back to protected pages in browser history after logout
+        window.history.pushState(null, "", window.location.href);
+        const handlePopState = () => {
+            window.history.pushState(null, "", window.location.href);
+        };
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();

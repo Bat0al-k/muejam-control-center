@@ -6,10 +6,10 @@ export default async function LibraryPage() {
   const auth = await getCurrentAuth();
 
   if (!auth) {
-    if (process.env.NODE_ENV !== "development") {
-      redirect("/login");
-    }
-  } else if (!hasPermission(auth.role, PERMISSIONS.LIBRARY_VIEW)) {
+    redirect("/login");
+  }
+
+  if (!hasPermission(auth.role, PERMISSIONS.LIBRARY_VIEW)) {
     redirect("/unauthorized");
   }
 
