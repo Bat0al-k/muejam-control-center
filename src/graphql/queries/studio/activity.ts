@@ -87,6 +87,7 @@ export const GET_STUDIO_USERS = `
             phone_number
             email_verified
             disabled
+            default_role
         }
     }
 `;

@@ -1,103 +1,3 @@
-// "use client";
-
-// import React, { useState } from "react";
-// import { FiUsers, FiSearch, FiCheckCircle } from "react-icons/fi";
-
-// const studioUsers = [
-//   { id: "usr-1", name: "Sarah Lin", email: "sarah.lin@creators.muejam.com", role: "Creator Pro", activePipelines: 1, totalCredits: 42100, status: "Active" },
-//   { id: "usr-2", name: "Marcus Vance", email: "m.vance@enterprise.studio", role: "Enterprise Studio", activePipelines: 2, totalCredits: 125000, status: "Active" },
-//   { id: "usr-3", name: "Dr. Aris Thorne", email: "thorne@linguistics.cam.ac.uk", role: "Academic Tier", activePipelines: 1, totalCredits: 18400, status: "Active" },
-//   { id: "usr-4", name: "Elena Gomez", email: "elena@motionreel.io", role: "Pro Creator", activePipelines: 1, totalCredits: 34200, status: "Active" },
-//   { id: "usr-5", name: "Kavita Rao", email: "kavita.rao@apexai.org", role: "Enterprise Studio", activePipelines: 0, totalCredits: 89000, status: "Active" },
-// ];
-
-// export default function UsersPage() {
-//   const [query, setQuery] = useState("");
-
-//   const filtered = studioUsers.filter(
-//     (u) =>
-//       u.name.toLowerCase().includes(query.toLowerCase()) ||
-//       u.email.toLowerCase().includes(query.toLowerCase()) ||
-//       u.role.toLowerCase().includes(query.toLowerCase())
-//   );
-
-//   return (
-//     <div className="space-y-6 max-w-[1440px] mx-auto">
-//       <div>
-//         <h1 className="text-2xl font-extrabold font-syne text-[#111111] tracking-tight">
-//           Studio Creators &amp; Accounts
-//         </h1>
-//         <p className="text-xs text-[#6B7280] mt-1">
-//           Active tenant creators provisioned with GPU cluster synthesis privileges.
-//         </p>
-//       </div>
-
-//       <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
-//         <div className="p-4 sm:p-5 border-b border-[#F0F0F2] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAFB]">
-//           <div className="flex items-center gap-2">
-//             <FiUsers className="w-4 h-4 text-[#E8785A]" />
-//             <h3 className="font-bold font-syne text-[#111111] text-sm">
-//               Provisioned Studio Accounts ({filtered.length})
-//             </h3>
-//           </div>
-
-//           <div className="relative w-full sm:w-64">
-//             <FiSearch className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-3" />
-//             <input
-//               type="text"
-//               value={query}
-//               onChange={(e) => setQuery(e.target.value)}
-//               placeholder="Search creators..."
-//               className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#E8785A]"
-//             />
-//           </div>
-//         </div>
-
-//         <div className="overflow-x-auto">
-//           <table className="w-full text-left text-xs">
-//             <thead>
-//               <tr className="border-b border-[#F0F0F2] bg-[#FAFAFB] text-[#6B7280] uppercase tracking-wider text-[10px] font-bold">
-//                 <th className="py-3 px-4">User</th>
-//                 <th className="py-3 px-4">Email</th>
-//                 <th className="py-3 px-4">Tier / Role</th>
-//                 <th className="py-3 px-4">Active Jobs</th>
-//                 <th className="py-3 px-4 text-right">Available Credits</th>
-//                 <th className="py-3 px-4">Status</th>
-//               </tr>
-//             </thead>
-//             <tbody className="divide-y divide-[#F0F0F2] text-[#374151]">
-//               {filtered.map((u) => (
-//                 <tr key={u.id} className="hover:bg-[#FAFAFB] transition-colors">
-//                   <td className="py-3.5 px-4 font-bold text-[#111111]">{u.name}</td>
-//                   <td className="py-3.5 px-4 text-[#6B7280]">{u.email}</td>
-//                   <td className="py-3.5 px-4">
-//                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-700">
-//                       {u.role}
-//                     </span>
-//                   </td>
-//                   <td className="py-3.5 px-4 font-mono font-semibold">
-//                     {u.activePipelines} running
-//                   </td>
-//                   <td className="py-3.5 px-4 font-mono font-bold text-right text-[#111111]">
-//                     {u.totalCredits.toLocaleString()} cr
-//                   </td>
-//                   <td className="py-3.5 px-4">
-//                     <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] font-semibold border border-emerald-200">
-//                       <FiCheckCircle className="w-3 h-3 text-emerald-600" />
-//                       {u.status}
-//                     </span>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -109,11 +9,16 @@ import {
   FiMail,
   FiFolder,
   FiAlertCircle,
+  FiEdit2,
+  FiTrash2,
+  FiShield,
+  FiCheck,
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import { EditUserModal } from "@/components/studio/modals/EditUserModal";
+import { DeleteUserModal } from "@/components/studio/modals/DeleteUserModal";
 
-
-interface StudioUser {
+export interface StudioUser {
   id: string;
   displayName: string;
   email: string;
@@ -121,8 +26,16 @@ interface StudioUser {
   phoneNumber: string | null;
   emailVerified: boolean;
   disabled: boolean;
+  role: string;
+  defaultRole: string;
   projectCount: number;
   online: boolean;
+}
+
+interface CurrentUserAuth {
+  id: string;
+  role: string;
+  isDeveloper: boolean;
 }
 
 interface StudioUsersResponse {
@@ -130,6 +43,7 @@ interface StudioUsersResponse {
   totalAccounts: number;
   onlineUsers: number;
   verifiedEmails: number;
+  currentUser?: CurrentUserAuth;
 }
 
 function formatLastSeen(value: string | null): string {
@@ -142,16 +56,40 @@ function formatLastSeen(value: string | null): string {
   return date.toLocaleString();
 }
 
+function getRoleBadge(role: string) {
+  const norm = (role || "").toLowerCase();
+  switch (norm) {
+    case "admin":
+      return { label: "Developer", classes: "bg-purple-50 text-purple-700 border-purple-200" };
+    case "sub_admin":
+      return { label: "Admin", classes: "bg-blue-50 text-blue-700 border-blue-200" };
+    case "user":
+      return { label: "User", classes: "bg-slate-100 text-slate-700 border-slate-200" };
+    case "author":
+    default:
+      return { label: "Author", classes: "bg-stone-100 text-stone-700 border-stone-200" };
+  }
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [data, setData] = useState<StudioUsersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Authentication & Developer permission state
+  const [currentUser, setCurrentUser] = useState<CurrentUserAuth | null>(null);
+
+  // Modals state for Developer actions
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<StudioUser | null>(null);
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<StudioUser | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-
   const ITEMS_PER_PAGE = 25;
+
+  const isDeveloper = Boolean(currentUser?.isDeveloper || currentUser?.role === "admin");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -161,6 +99,7 @@ export default function UsersPage() {
         setLoading(true);
         setError("");
 
+        // 1. Fetch Studio users data
         const response = await fetch("/api/studio/users", {
           signal: controller.signal,
           cache: "no-store",
@@ -172,13 +111,30 @@ export default function UsersPage() {
 
         const result: StudioUsersResponse = await response.json();
         setData(result);
+
+        if (result.currentUser) {
+          setCurrentUser(result.currentUser);
+        } else {
+          // Fallback to /api/auth/me to verify user identity & role
+          try {
+            const meRes = await fetch("/api/auth/me", { signal: controller.signal });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              if (meData.authenticated && meData.user) {
+                setCurrentUser(meData.user);
+              }
+            }
+          } catch {
+            // Ignore background session check errors
+          }
+        }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
 
         setError(
           err instanceof Error
             ? err.message
-            : "Something went wrong while loading users.",
+            : "Something went wrong while loading users."
         );
       } finally {
         if (!controller.signal.aborted) {
@@ -201,11 +157,11 @@ export default function UsersPage() {
       return (
         user.displayName.toLowerCase().includes(normalizedQuery) ||
         user.email.toLowerCase().includes(normalizedQuery) ||
-        (user.phoneNumber ?? "").toLowerCase().includes(normalizedQuery)
+        (user.phoneNumber ?? "").toLowerCase().includes(normalizedQuery) ||
+        (user.role ?? "").toLowerCase().includes(normalizedQuery)
       );
     });
   }, [data, query]);
-
 
   useEffect(() => {
     setCurrentPage(1);
@@ -215,20 +171,84 @@ export default function UsersPage() {
 
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
+
+  // Handle successful update from Edit modal
+  const handleUserUpdated = (updatedUser: StudioUser) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const nextUsers = prev.users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      return {
+        ...prev,
+        users: nextUsers,
+        verifiedEmails: nextUsers.filter((u) => u.emailVerified).length,
+      };
+    });
+
+    setSuccessMessage(`Changes for "${updatedUser.displayName}" were successfully saved to the database.`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
+  // Handle successful deletion from Delete modal
+  const handleUserDeleted = (deletedUserId: string) => {
+    const deletedUser = data?.users.find((u) => u.id === deletedUserId);
+    setData((prev) => {
+      if (!prev) return prev;
+      const remainingUsers = prev.users.filter((u) => u.id !== deletedUserId);
+      return {
+        ...prev,
+        users: remainingUsers,
+        totalAccounts: remainingUsers.length,
+        onlineUsers: remainingUsers.filter((u) => u.online).length,
+        verifiedEmails: remainingUsers.filter((u) => u.emailVerified).length,
+      };
+    });
+
+    setSuccessMessage(`User "${deletedUser?.displayName || deletedUserId}" was permanently removed from the database.`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
 
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto">
-      <div>
-        <h1 className="text-2xl font-extrabold font-syne text-[#111111] tracking-tight">
-          Studio Creators &amp; Accounts
-        </h1>
-        <p className="text-xs text-[#6B7280] mt-1">
-          Monitor Studio accounts, email verification, activity, and projects.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold font-syne text-[#111111] tracking-tight">
+            Studio Creators &amp; Accounts
+          </h1>
+          <p className="text-xs text-[#6B7280] mt-1">
+            Monitor Studio accounts, permissions, email verification, activity, and projects.
+          </p>
+        </div>
+
+        {/* Developer Badge status indicator */}
+        {isDeveloper && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold self-start sm:self-auto shadow-2xs">
+            <FiShield className="w-3.5 h-3.5 text-purple-600" />
+            <span>Developer Mode: Edit &amp; Delete Enabled</span>
+          </div>
+        )}
       </div>
 
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div
+          role="status"
+          className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 animate-fade-in shadow-2xs"
+        >
+          <FiCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="ml-auto text-emerald-600 hover:text-emerald-900"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Error message */}
       {error && (
         <div
           role="alert"
@@ -239,8 +259,9 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
               Total Accounts
@@ -255,7 +276,7 @@ export default function UsersPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
               Online Users
@@ -270,7 +291,7 @@ export default function UsersPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
               Verified Emails
@@ -286,6 +307,7 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {/* Accounts Table Container */}
       <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
         <div className="p-4 sm:p-5 border-b border-[#F0F0F2] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAFB]">
           <div className="flex items-center gap-2">
@@ -301,7 +323,7 @@ export default function UsersPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, email, or phone..."
+              placeholder="Search name, email, phone, role..."
               aria-label="Search Studio users"
               className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#E8785A]"
             />
@@ -311,14 +333,18 @@ export default function UsersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#F0F0F2] bg-[#FAFAFB] text-[#6B7280] uppercase tracking-wider text-[10px] font-bold">
+              <tr className="border-b border-[#F0F0F2] bg-[#FAFAFB] text-[#5f6572] uppercase tracking-wider text-[10px] font-bold">
                 <th className="py-3 px-4">User</th>
                 <th className="py-3 px-4">Email</th>
+                <th className="py-3 px-4">Role</th>
                 <th className="py-3 px-4">Phone Number</th>
                 <th className="py-3 px-4">Last Seen</th>
                 <th className="py-3 px-4">Projects</th>
                 <th className="py-3 px-4">Email Verification</th>
                 <th className="py-3 px-4">Account Status</th>
+                {isDeveloper && (
+                  <th className="py-3 px-4 text-center">Actions</th>
+                )}
               </tr>
             </thead>
 
@@ -326,7 +352,7 @@ export default function UsersPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={isDeveloper ? 9 : 8}
                     className="py-10 px-4 text-center text-[#6B7280]"
                   >
                     Loading Studio accounts...
@@ -335,7 +361,7 @@ export default function UsersPage() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={isDeveloper ? 9 : 8}
                     className="py-10 px-4 text-center text-[#6B7280]"
                   >
                     Unable to load accounts. Please try again.
@@ -344,100 +370,159 @@ export default function UsersPage() {
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={isDeveloper ? 9 : 8}
                     className="py-10 px-4 text-center text-[#6B7280]"
                   >
                     No Studio accounts found.
                   </td>
                 </tr>
               ) : (
-                paginatedUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    onClick={() => router.push(`/dashboard/studio/users/${user.id}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        router.push(`/dashboard/studio/users/${user.id}`);
-                      }
-                    }}
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`View details for ${user.displayName}`}
-                    className="cursor-pointer hover:bg-[#FAFAFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#E8785A] transition-colors"
-                  >
-                    <td className="py-3.5 px-4 font-bold text-[#111111]">
-                      {user.displayName}
-                    </td>
+                paginatedUsers.map((user) => {
+                  const roleBadge = getRoleBadge(user.role || user.defaultRole);
 
-                    <td className="py-3.5 px-4 text-[#6B7280]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <FiMail className="shrink-0" />
-                        {user.email || "—"}
-                      </span>
-                    </td>
+                  return (
+                    <tr
+                      key={user.id}
+                      onClick={() => router.push(`/dashboard/studio/users/${user.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          router.push(`/dashboard/studio/users/${user.id}`);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`View details for ${user.displayName}`}
+                      className="cursor-pointer hover:bg-[#FAFAFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#E8785A] transition-colors"
+                    >
+                      {/* Name */}
+                      <td className="py-3.5 px-4 font-bold text-[#111111]">
+                        {user.displayName}
+                      </td>
 
-                    <td className="py-3.5 px-4 text-[#6B7280]">
-                      {user.phoneNumber || "—"}
-                    </td>
+                      {/* Email */}
+                      <td className="py-3.5 px-4 text-[#6B7280]">
+                        <span className="inline-flex items-center gap-1.5">
+                          <FiMail className="shrink-0" />
+                          {user.email || "—"}
+                        </span>
+                      </td>
 
-                    <td className="py-3.5 px-4 text-[#6B7280]">
-                      {formatLastSeen(user.lastSeen)}
-                    </td>
+                      {/* Role */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleBadge.classes}`}
+                        >
+                          {roleBadge.label}
+                        </span>
+                      </td>
 
-                    <td className="py-3.5 px-4 font-mono font-semibold">
-                      <span className="inline-flex items-center gap-1.5">
-                        <FiFolder className="text-[#9CA3AF]" />
-                        {user.projectCount}
-                      </span>
-                    </td>
+                      {/* Phone */}
+                      <td className="py-3.5 px-4 text-[#6B7280]">
+                        {user.phoneNumber || "—"}
+                      </td>
 
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.emailVerified
-                          ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                          : "text-amber-700 bg-amber-50 border-amber-200"
-                          }`}
-                      >
-                        {user.emailVerified ? (
-                          <FiCheckCircle className="w-3 h-3" />
-                        ) : (
-                          <FiClock className="w-3 h-3" />
-                        )}
-                        {user.emailVerified ? "Verified" : "Not verified"}
-                      </span>
-                    </td>
+                      {/* Last Seen */}
+                      <td className="py-3.5 px-4 text-[#6B7280]">
+                        {formatLastSeen(user.lastSeen)}
+                      </td>
 
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.disabled
-                          ? "text-red-700 bg-red-50 border-red-200"
-                          : user.online
+                      {/* Projects */}
+                      <td className="py-3.5 px-4 font-mono font-semibold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <FiFolder className="text-[#9CA3AF]" />
+                          {user.projectCount}
+                        </span>
+                      </td>
+
+                      {/* Email Verification */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.emailVerified
                             ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                            : "text-stone-700 bg-stone-100 border-stone-200"
-                          }`}
-                      >
-                        {user.disabled
-                          ? "Disabled"
-                          : user.online
-                            ? "Online"
-                            : user.lastSeen
-                              ? "Offline"
-                              : "No activity data"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                            : "text-amber-700 bg-amber-50 border-amber-200"
+                            }`}
+                        >
+                          {user.emailVerified ? (
+                            <FiCheckCircle className="w-3 h-3" />
+                          ) : (
+                            <FiClock className="w-3 h-3" />
+                          )}
+                          {user.emailVerified ? "Verified" : "Not verified"}
+                        </span>
+                      </td>
+
+                      {/* Account Status */}
+                      <td className="py-3.5 px-4.5">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.disabled
+                            ? "text-red-700 bg-red-50 border-red-200"
+                            : user.online
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                              : "text-stone-700 bg-stone-100 border-stone-200"
+                            }`}
+                        >
+                          {user.disabled
+                            ? "Disabled"
+                            : user.online
+                              ? "Online"
+                              : user.lastSeen
+                                ? "Offline"
+                                : "No activity data"}
+                        </span>
+                      </td>
+
+                      {/* DEVELOPER ONLY: Edit & Delete Actions */}
+                      {isDeveloper && (
+                        <td
+                          className="py-3.5 px-4 text-center whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="inline-flex items-center gap-1.5 justify-center">
+                            {/* Edit Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUserForEdit(user);
+                              }}
+                              title={`Edit ${user.displayName}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#374151] bg-[#e8b45a]/10 border border-[#e8b45a59] hover:bg-[#e8b45a35] hover:text-[#e8785a] transition-colors shadow-2xs"
+                            >
+                              <FiEdit2 className="w-4 h-4 text-[#e8b45a]" />
+                              {/* <span>Edit</span> */}
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUserForDelete(user);
+                              }}
+                              title={`Delete ${user.displayName}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-600 bg-red-50/70 border border-red-200 hover:bg-red-100 hover:text-red-700 transition-colors shadow-2xs"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                              {/* <span>Delete</span> */}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
 
+          {/* Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#F0F0F2] px-4 py-3">
             <p className="text-xs text-[#6B7280]">
               {filteredUsers.length === 0
                 ? "Showing 0 users"
                 : `Showing ${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(
                   currentPage * ITEMS_PER_PAGE,
-                  filteredUsers.length,
+                  filteredUsers.length
                 )} of ${filteredUsers.length} users`}
             </p>
 
@@ -446,7 +531,7 @@ export default function UsersPage() {
                 type="button"
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 disabled={currentPage === 1 || loading}
-                className="rounded-lg border border-[#D1D5DB] px-3 py-1.5 text-xs font-semibold text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-[#D1D5DB] px-3 py-1.5 text-xs font-semibold text-[#374151] disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#FAFAFB] transition-colors"
               >
                 Previous
               </button>
@@ -461,7 +546,7 @@ export default function UsersPage() {
                   setCurrentPage((page) => Math.min(totalPages, page + 1))
                 }
                 disabled={currentPage >= totalPages || loading}
-                className="rounded-lg border border-[#D1D5DB] px-3 py-1.5 text-xs font-semibold text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-[#D1D5DB] px-3 py-1.5 text-xs font-semibold text-[#374151] disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#FAFAFB] transition-colors"
               >
                 Next
               </button>
@@ -469,6 +554,22 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit User Modal with Confirmation Flow */}
+      <EditUserModal
+        isOpen={Boolean(selectedUserForEdit)}
+        onClose={() => setSelectedUserForEdit(null)}
+        user={selectedUserForEdit}
+        onUserUpdated={handleUserUpdated}
+      />
+
+      {/* Delete User Modal with Confirmation Flow */}
+      <DeleteUserModal
+        isOpen={Boolean(selectedUserForDelete)}
+        onClose={() => setSelectedUserForDelete(null)}
+        user={selectedUserForDelete}
+        onUserDeleted={handleUserDeleted}
+      />
     </div>
   );
 }

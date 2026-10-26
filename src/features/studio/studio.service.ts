@@ -28,6 +28,11 @@ import {
 } from "@/graphql/queries/studio/activity";
 
 import { GET_STUDIO_FEATURE_UTILIZATION } from "@/graphql/queries/studio/features";
+import {
+    UPDATE_STUDIO_USER,
+    DELETE_STUDIO_USER,
+} from "@/graphql/mutations/studio/users";
+import { INSERT_STUDIO_PAYMENT } from "@/graphql/mutations/studio/payments";
 
 import type {
     StudioOverviewData,
@@ -144,6 +149,7 @@ interface UsersResponse {
         phone_number: string | null;
         email_verified: boolean | null;
         disabled: boolean | null;
+        default_role: string | null;
     }[];
 }
 
@@ -162,6 +168,8 @@ export interface StudioUser {
     phoneNumber: string | null;
     emailVerified: boolean;
     disabled: boolean;
+    role: string;
+    defaultRole: string;
     projectCount: number;
     online: boolean;
 }
@@ -1202,6 +1210,8 @@ export async function getStudioUsers(): Promise<StudioUsersData> {
             phoneNumber: user.phone_number,
             emailVerified: user.email_verified === true,
             disabled: user.disabled === true,
+            role: user.default_role || "author",
+            defaultRole: user.default_role || "author",
             projectCount: projectsCount.get(user.id) ?? 0,
             online,
         };
@@ -1214,3 +1224,112 @@ export async function getStudioUsers(): Promise<StudioUsersData> {
         verifiedEmails: users.filter((user) => user.emailVerified).length,
     };
 }
+
+// __________________________________ Manage Studio Users (Developer Only) __________________________________
+
+export interface UpdateStudioUserData {
+    displayName?: string;
+    email?: string;
+    phoneNumber?: string | null;
+    emailVerified?: boolean;
+    disabled?: boolean;
+    defaultRole?: string;
+}
+
+export async function updateStudioUser(
+    id: string,
+    updates: UpdateStudioUserData
+) {
+    const result = await executeGraphQL<{
+        update_auth_users_by_pk: {
+            id: string;
+            display_name: string | null;
+            email: string | null;
+            phone_number: string | null;
+            email_verified: boolean | null;
+            disabled: boolean | null;
+            default_role: string | null;
+            last_seen: string | null;
+        } | null;
+    }>(UPDATE_STUDIO_USER, {
+        id,
+        displayName: updates.displayName,
+        email: updates.email,
+        phoneNumber: updates.phoneNumber,
+        emailVerified: updates.emailVerified,
+        disabled: updates.disabled,
+        defaultRole: updates.defaultRole,
+    });
+
+    if (!result.update_auth_users_by_pk) {
+        throw new Error("User not found or update failed.");
+    }
+
+    return result.update_auth_users_by_pk;
+}
+
+export async function deleteStudioUser(id: string) {
+    const result = await executeGraphQL<{
+        delete_auth_users_by_pk: {
+            id: string;
+        } | null;
+    }>(DELETE_STUDIO_USER, { id });
+
+    if (!result.delete_auth_users_by_pk) {
+        throw new Error("User not found or already deleted.");
+    }
+
+    return result.delete_auth_users_by_pk;
+}
+
+export interface CreateStudioPaymentInput {
+    userId: string;
+    amount: number;
+    currency?: string;
+    paymentMethod?: string;
+    status?: string;
+    transactionId?: string;
+    planId?: string;
+}
+
+export async function createStudioPayment(input: CreateStudioPaymentInput) {
+    if (typeof input.amount !== "number" || Number.isNaN(input.amount) || input.amount <= 0) {
+        throw new Error(
+            "A valid payment amount greater than 0.00 is required to record a transaction."
+        );
+    }
+
+    const defaultPlanId = "dead6c08-8596-4be0-a0e0-674e88d0687a";
+    const transactionId =
+        input.transactionId?.trim() ||
+        `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    const result = await executeGraphQL<{
+        insert_Voice_Studio_payments_one: {
+            id: string;
+            user_id: string;
+            amount: number;
+            currency: string;
+            payment_method: string;
+            status: string;
+            transaction_id: string;
+            plan_id: string;
+            created_at: string;
+        } | null;
+    }>(INSERT_STUDIO_PAYMENT, {
+        userId: input.userId,
+        amount: Number(input.amount), // Raw float8 stored in the database
+        currency: input.currency?.trim() || "USD",
+        paymentMethod: input.paymentMethod?.trim() || "card",
+        status: input.status?.trim() || "successful",
+        transactionId,
+        planId: input.planId || defaultPlanId,
+    });
+
+    if (!result.insert_Voice_Studio_payments_one) {
+        throw new Error("Failed to record payment transaction.");
+    }
+
+    return result.insert_Voice_Studio_payments_one;
+}
+
