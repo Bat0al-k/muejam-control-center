@@ -91,6 +91,31 @@ export function isValidPaymentAmount(
 }
 
 /**
+ * Normalizes payment amounts stored in gateway minor units (cents / piasters)
+ * to standard currency units.
+ *
+ * In Paymob & Stripe, financial amounts are strictly stored in minor units (piasters / cents):
+ * - 15000 piasters -> 150.00 EGP
+ * - 25000 piasters -> 250.00 EGP
+ * - 10000 piasters -> 100.00 EGP
+ * - 500 piasters   -> 5.00 EGP
+ * - 100 piasters   -> 1.00 EGP
+ * - 0              -> 0.00 EGP
+ */
+export function normalizePaymentAmount(
+    amount: number | string | null | undefined,
+    _paymentMethod?: string
+): number {
+    if (amount === null || amount === undefined || amount === "") {
+        return 0;
+    }
+    const num = typeof amount === "number" ? amount : Number(amount);
+    if (Number.isNaN(num)) return 0;
+
+    return num / 100;
+}
+
+/**
  * Parses user input for bank amounts, normalizing commas and decimals.
  * Returns null if the value is empty or not a valid number.
  */
@@ -104,26 +129,4 @@ export function parseBankAmountInput(
     return Number.isNaN(num) ? null : num;
 }
 
-
-
-// const { formatBankAmount, isValidPaymentAmount, parseBankAmountInput } = require('d:/Work/dash/company-control-center/src/lib/formatters.ts');
-
-// console.log("formatBankAmount tests:");
-// console.log("0:", formatBankAmount(0));
-// console.log("'0':", formatBankAmount("0"));
-// console.log("null:", formatBankAmount(null));
-// console.log("undefined:", formatBankAmount(undefined));
-// console.log("50:", formatBankAmount(50));
-// console.log("12.5:", formatBankAmount(12.5));
-// console.log("1250.7:", formatBankAmount(1250.7));
-// console.log("50 with USD:", formatBankAmount(50, { currency: "USD" }));
-
-// console.log("\nisValidPaymentAmount tests:");
-// console.log("empty '':", isValidPaymentAmount(""));
-// console.log("0:", isValidPaymentAmount(0));
-// console.log("'0.00':", isValidPaymentAmount("0.00"));
-// console.log("null:", isValidPaymentAmount(null));
-// console.log("-5:", isValidPaymentAmount(-5));
-// console.log("0.01:", isValidPaymentAmount(0.01));
-// console.log("50:", isValidPaymentAmount(50));
 

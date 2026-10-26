@@ -100,16 +100,27 @@ export function ActivityDetailsDrawer() {
           </div>
 
           <div className="text-right">
-            <span className="text-xs text-[#6B7280] block">Credits Impact</span>
-            <span
-              className={`text-lg font-mono font-bold ${activity.creditsChange > 0 ? "text-emerald-600" : "text-[#111111]"
-                }`}
-            >
-              {activity.creditsChange > 0
-                ? `+${activity.creditsChange.toLocaleString()}`
-                : `${activity.creditsChange.toLocaleString()}`}{" "}
-              cr
-            </span>
+            {activity.eventType === "Transactions" ? (
+              <>
+                <span className="text-xs text-[#6B7280] block">Payment Amount</span>
+                <span className="text-lg font-mono font-bold text-emerald-600">
+                  {activity.details}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-[#6B7280] block">Credits Impact</span>
+                <span
+                  className={`text-lg font-mono font-bold ${activity.creditsChange > 0 ? "text-emerald-600" : "text-[#111111]"
+                    }`}
+                >
+                  {activity.creditsChange > 0
+                    ? `+${activity.creditsChange.toLocaleString()}`
+                    : `${activity.creditsChange.toLocaleString()}`}{" "}
+                  cr
+                </span>
+              </>
+            )}
           </div>
         </div>
 

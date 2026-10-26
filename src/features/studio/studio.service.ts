@@ -33,6 +33,7 @@ import {
     DELETE_STUDIO_USER,
 } from "@/graphql/mutations/studio/users";
 import { INSERT_STUDIO_PAYMENT } from "@/graphql/mutations/studio/payments";
+import { formatBankAmount, normalizePaymentAmount } from "@/lib/formatters";
 
 import type {
     StudioOverviewData,
@@ -230,22 +231,29 @@ function mapPaymentActivity(
     payments: PaymentsResponse["Voice_Studio_payments"],
     usersMap: Map<string, string>,
 ): StudioActivity[] {
-    return payments.map((payment) => ({
-        id: `payment-${payment.id}`,
-        userId: payment.user_id,
-        userName: getUserName(payment.user_id, usersMap),
-        userBadge: "Payment",
-        avatarBg: "bg-emerald-100 text-emerald-800",
-        description: `${payment.payment_method} payment — ${payment.status}`,
-        creditsChange: 0,
-        timestamp: payment.created_at,
-        timeAgo: formatTimeAgo(payment.created_at),
-        eventType: "Transactions",
-        transactionId: payment.transaction_id,
-        status: payment.status,
-        details: `${payment.amount.toLocaleString()} ${payment.currency}`,
-        isStripe: false,
-    }));
+    return payments.map((payment) => {
+        // Paymob & payment gateways record amounts in minor units (piasters / cents).
+        // e.g., 15000 piasters = 150.00 EGP, 25000 = 250.00 EGP, 500 = 5.00 EGP
+        const normalizedAmount = normalizePaymentAmount(payment.amount, payment.payment_method);
+        const formattedAmount = formatBankAmount(normalizedAmount, { currency: payment.currency });
+
+        return {
+            id: `payment-${payment.id}`,
+            userId: payment.user_id,
+            userName: getUserName(payment.user_id, usersMap),
+            userBadge: "Payment",
+            avatarBg: "bg-emerald-100 text-emerald-800",
+            description: `${payment.payment_method} payment — ${payment.status}`,
+            creditsChange: 0,
+            timestamp: payment.created_at,
+            timeAgo: formatTimeAgo(payment.created_at),
+            eventType: "Transactions",
+            transactionId: payment.transaction_id,
+            status: payment.status,
+            details: formattedAmount,
+            isStripe: false,
+        };
+    });
 }
 
 function mapProjectActivity(
@@ -442,7 +450,7 @@ export async function getStudioOverview(
             id: payment.id,
             userId: payment.user_id,
             userName: getUserName(payment.user_id, usersMap),
-            amount: payment.amount,
+            amount: normalizePaymentAmount(payment.amount, payment.payment_method),
             currency: payment.currency,
             paymentMethod: payment.payment_method,
             status: payment.status,
@@ -898,6 +906,11 @@ export async function getStudioUserActivityDetails(userId: string) {
             : Promise.resolve([]),
     ]);
 
+    const normalizedPayments = payments.map((p) => ({
+        ...p,
+        amount: normalizePaymentAmount(p.amount, p.payment_method),
+    }));
+
     return {
         user: {
             id: user.id,
@@ -905,7 +918,7 @@ export async function getStudioUserActivityDetails(userId: string) {
             email: user.email,
         },
         projects,
-        payments,
+        payments: normalizedPayments,
         aiUsage,
         ttsRequests,
         usageLogs,
@@ -1304,6 +1317,9 @@ export async function createStudioPayment(input: CreateStudioPaymentInput) {
         input.transactionId?.trim() ||
         `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
+    // Paymob and gateway payments are saved in minor units (e.g. 15000 piasters for 150.00 EGP)
+    const amountInMinorUnits = Math.round(Number(input.amount) * 100);
+
     const result = await executeGraphQL<{
         insert_Voice_Studio_payments_one: {
             id: string;
@@ -1318,7 +1334,7 @@ export async function createStudioPayment(input: CreateStudioPaymentInput) {
         } | null;
     }>(INSERT_STUDIO_PAYMENT, {
         userId: input.userId,
-        amount: Number(input.amount), // Raw float8 stored in the database
+        amount: amountInMinorUnits,
         currency: input.currency?.trim() || "USD",
         paymentMethod: input.paymentMethod?.trim() || "card",
         status: input.status?.trim() || "successful",
@@ -1330,6 +1346,10 @@ export async function createStudioPayment(input: CreateStudioPaymentInput) {
         throw new Error("Failed to record payment transaction.");
     }
 
-    return result.insert_Voice_Studio_payments_one;
+    const created = result.insert_Voice_Studio_payments_one;
+    return {
+        ...created,
+        amount: normalizePaymentAmount(created.amount, created.payment_method),
+    };
 }
 
