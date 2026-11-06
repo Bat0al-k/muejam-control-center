@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { StudioProvider } from "@/features/studio/context";
+import { SessionTracker } from "@/components/SessionTracker";
 
 export function StudioLayoutClient({
   children,
@@ -26,6 +27,7 @@ export function StudioLayoutClient({
 
   return (
     <StudioProvider>
+      <SessionTracker product="studio" />
       <div className="flex min-h-screen bg-[#FAF8F5] text-[#111111] antialiased">
         {/* Left Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

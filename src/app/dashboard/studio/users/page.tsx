@@ -13,24 +13,20 @@ import {
   FiTrash2,
   FiShield,
   FiCheck,
+  FiUserCheck,
+  FiWifi,
+  FiWifiOff,
+  FiLayers,
+  FiLogIn,
+  FiLogOut,
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { EditUserModal } from "@/components/studio/modals/EditUserModal";
 import { DeleteUserModal } from "@/components/studio/modals/DeleteUserModal";
+import type { StudioUser } from "@/features/studio/studio.service";
 
-export interface StudioUser {
-  id: string;
-  displayName: string;
-  email: string;
-  lastSeen: string | null;
-  phoneNumber: string | null;
-  emailVerified: boolean;
-  disabled: boolean;
-  role: string;
-  defaultRole: string;
-  projectCount: number;
-  online: boolean;
-}
+export type { StudioUser };
 
 interface CurrentUserAuth {
   id: string;
@@ -41,19 +37,46 @@ interface CurrentUserAuth {
 interface StudioUsersResponse {
   users: StudioUser[];
   totalAccounts: number;
+  activeUsers: number;
+  suspendedUsers: number;
   onlineUsers: number;
+  offlineUsers: number;
   verifiedEmails: number;
+  isolatedLibraryAccounts: number;
   currentUser?: CurrentUserAuth;
 }
 
-function formatLastSeen(value: string | null): string {
-  if (!value) return "No activity recorded";
+type StatusFilter = "all" | "active" | "online" | "offline" | "suspended";
 
+function formatTimestamp(value: string | null): string {
+  if (!value) return "No session recorded";
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-  return date.toLocaleString();
+function formatRelativeTime(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 0) return "Just now";
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths}mo ago`;
 }
 
 function getRoleBadge(role: string) {
@@ -74,6 +97,7 @@ function getRoleBadge(role: string) {
 export default function UsersPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [data, setData] = useState<StudioUsersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -99,7 +123,6 @@ export default function UsersPage() {
         setLoading(true);
         setError("");
 
-        // 1. Fetch Studio users data
         const response = await fetch("/api/studio/users", {
           signal: controller.signal,
           cache: "no-store",
@@ -154,6 +177,21 @@ export default function UsersPage() {
     if (!data) return [];
 
     return data.users.filter((user) => {
+      if (statusFilter === "active" && (user.disabled || user.accountStatus === "suspended")) {
+        return false;
+      }
+      if (statusFilter === "online" && !user.online) {
+        return false;
+      }
+      if (statusFilter === "offline" && (user.online || user.disabled)) {
+        return false;
+      }
+      if (statusFilter === "suspended" && !user.disabled && user.accountStatus !== "suspended") {
+        return false;
+      }
+
+      if (!normalizedQuery) return true;
+
       return (
         user.displayName.toLowerCase().includes(normalizedQuery) ||
         user.email.toLowerCase().includes(normalizedQuery) ||
@@ -161,11 +199,11 @@ export default function UsersPage() {
         (user.role ?? "").toLowerCase().includes(normalizedQuery)
       );
     });
-  }, [data, query]);
+  }, [data, query, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [query]);
+  }, [query, statusFilter]);
 
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
 
@@ -178,11 +216,28 @@ export default function UsersPage() {
   const handleUserUpdated = (updatedUser: StudioUser) => {
     setData((prev) => {
       if (!prev) return prev;
-      const nextUsers = prev.users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      // If product was switched to library, remove from Studio list and increment isolatedLibraryAccounts
+      const nextUsers =
+        updatedUser.product === "library"
+          ? prev.users.filter((u) => u.id !== updatedUser.id)
+          : prev.users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+
+      const activeCount = nextUsers.filter((u) => !u.disabled && u.accountStatus === "active").length;
+      const onlineCount = nextUsers.filter((u) => u.online).length;
+
       return {
         ...prev,
         users: nextUsers,
+        totalAccounts: nextUsers.length,
+        activeUsers: activeCount,
+        suspendedUsers: nextUsers.length - activeCount,
+        onlineUsers: onlineCount,
+        offlineUsers: nextUsers.length - onlineCount,
         verifiedEmails: nextUsers.filter((u) => u.emailVerified).length,
+        isolatedLibraryAccounts:
+          updatedUser.product === "library"
+            ? prev.isolatedLibraryAccounts + 1
+            : prev.isolatedLibraryAccounts,
       };
     });
 
@@ -196,11 +251,16 @@ export default function UsersPage() {
     setData((prev) => {
       if (!prev) return prev;
       const remainingUsers = prev.users.filter((u) => u.id !== deletedUserId);
+      const activeCount = remainingUsers.filter((u) => !u.disabled && u.accountStatus === "active").length;
+      const onlineCount = remainingUsers.filter((u) => u.online).length;
       return {
         ...prev,
         users: remainingUsers,
         totalAccounts: remainingUsers.length,
-        onlineUsers: remainingUsers.filter((u) => u.online).length,
+        activeUsers: activeCount,
+        suspendedUsers: remainingUsers.length - activeCount,
+        onlineUsers: onlineCount,
+        offlineUsers: remainingUsers.length - onlineCount,
         verifiedEmails: remainingUsers.filter((u) => u.emailVerified).length,
       };
     });
@@ -213,21 +273,37 @@ export default function UsersPage() {
     <div className="space-y-6 max-w-[1440px] mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#FFF3EE] border border-[#FCD9CE] text-[#E8785A] text-[11px] font-bold mb-2">
+            <FiLayers className="w-3.5 h-3.5" />
+            <span>Voice_Studio Schema • Strict Product Isolation</span>
+          </div>
           <h1 className="text-2xl font-extrabold font-syne text-[#111111] tracking-tight">
             Studio Creators &amp; Accounts
           </h1>
           <p className="text-xs text-[#6B7280] mt-1">
-            Monitor Studio accounts, permissions, email verification, activity, and projects.
+            Monitor isolated Studio accounts, real-time online/offline session timestamps, active user counts, and projects.
           </p>
         </div>
 
-        {/* Developer Badge status indicator */}
-        {isDeveloper && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold self-start sm:self-auto shadow-2xs">
-            <FiShield className="w-3.5 h-3.5 text-purple-600" />
-            <span>Developer Mode: Edit &amp; Delete Enabled</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <Link
+            href="/dashboard/library/users"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EB] hover:border-[#E8785A] text-[#374151] hover:text-[#E8785A] text-xs font-semibold transition-colors shadow-2xs"
+          >
+            <FiUsers className="w-3.5 h-3.5 text-[#E8785A]" />
+            <span>
+              Switch to Library Accounts ({loading ? "—" : data?.isolatedLibraryAccounts ?? 0})
+            </span>
+          </Link>
+
+          {/* Developer Badge status indicator */}
+          {isDeveloper && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold shadow-2xs">
+              <FiShield className="w-3.5 h-3.5 text-purple-600" />
+              <span>Developer Mode: Edit &amp; Delete Enabled</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Success Notification Banner */}
@@ -259,38 +335,86 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Top KPI Cards (5 Cards: Studio Accounts, Active Users, Online Users, Offline Users, Verified Emails) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* 1. Studio Accounts (Separated) */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
-              Total Accounts
+              Studio Accounts
             </p>
             <FiUsers className="w-5 h-5 text-[#E8785A]" />
           </div>
           <p className="mt-3 text-2xl font-extrabold text-[#111111]">
             {loading ? "—" : (data?.totalAccounts ?? 0).toLocaleString()}
           </p>
-          <p className="mt-1 text-xs text-[#6B7280]">
-            All Studio accounts
+          <p className="mt-1 text-[11px] text-[#6B7280]">
+            Isolated from{" "}
+            <span className="font-semibold text-[#111111]">
+              {loading ? "—" : (data?.isolatedLibraryAccounts ?? 0).toLocaleString()}
+            </span>{" "}
+            Library accounts
           </p>
         </div>
 
+        {/* 2. Active Users */}
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-[#6B7280]">
+              Active Users
+            </p>
+            <FiUserCheck className="w-5 h-5 text-blue-600" />
+          </div>
+          <p className="mt-3 text-2xl font-extrabold text-[#111111]">
+            {loading ? "—" : (data?.activeUsers ?? 0).toLocaleString()}
+          </p>
+          <p className="mt-1 text-[11px] text-[#6B7280]">
+            Enabled accounts •{" "}
+            <span className="text-red-600 font-semibold">
+              {loading ? "—" : data?.suspendedUsers ?? 0} suspended
+            </span>
+          </p>
+        </div>
+
+        {/* 3. Online Users */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
               Online Users
             </p>
-            <FiClock className="w-5 h-5 text-emerald-600" />
+            <FiWifi className="w-5 h-5 text-emerald-600" />
           </div>
-          <p className="mt-3 text-2xl font-extrabold text-[#111111]">
-            {loading ? "—" : (data?.onlineUsers ?? 0).toLocaleString()}
-          </p>
-          <p className="mt-1 text-xs text-[#6B7280]">
-            Based on activity in the last 5 minutes
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className="text-2xl font-extrabold text-emerald-700">
+              {loading ? "—" : (data?.onlineUsers ?? 0).toLocaleString()}
+            </p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-[#6B7280]">
+            Active session heartbeat (&lt; 90s)
           </p>
         </div>
 
+        {/* 4. Offline Users */}
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-[#6B7280]">
+              Offline Users
+            </p>
+            <FiWifiOff className="w-5 h-5 text-stone-500" />
+          </div>
+          <p className="mt-3 text-2xl font-extrabold text-[#111111]">
+            {loading ? "—" : (data?.offlineUsers ?? 0).toLocaleString()}
+          </p>
+          <p className="mt-1 text-[11px] text-[#6B7280]">
+            Disconnected or ended session
+          </p>
+        </div>
+
+        {/* 5. Verified Emails */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-[#6B7280]">
@@ -301,7 +425,7 @@ export default function UsersPage() {
           <p className="mt-3 text-2xl font-extrabold text-[#111111]">
             {loading ? "—" : (data?.verifiedEmails ?? 0).toLocaleString()}
           </p>
-          <p className="mt-1 text-xs text-[#6B7280]">
+          <p className="mt-1 text-[11px] text-[#6B7280]">
             Accounts with verified email addresses
           </p>
         </div>
@@ -309,15 +433,42 @@ export default function UsersPage() {
 
       {/* Accounts Table Container */}
       <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
-        <div className="p-4 sm:p-5 border-b border-[#F0F0F2] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAFB]">
-          <div className="flex items-center gap-2">
-            <FiUsers className="w-4 h-4 text-[#E8785A]" />
-            <h3 className="font-bold font-syne text-[#111111] text-sm">
-              Provisioned Studio Accounts ({filteredUsers.length})
-            </h3>
+        <div className="p-4 sm:p-5 border-b border-[#F0F0F2] flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#FAFAFB]">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <FiUsers className="w-4 h-4 text-[#E8785A]" />
+              <h3 className="font-bold font-syne text-[#111111] text-sm">
+                Provisioned Studio Accounts ({filteredUsers.length})
+              </h3>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-white border border-[#E5E7EB] rounded-xl p-1 text-[11px] font-semibold">
+              {(
+                [
+                  { id: "all", label: `All (${data?.totalAccounts ?? 0})` },
+                  { id: "active", label: `Active (${data?.activeUsers ?? 0})` },
+                  { id: "online", label: `Online (${data?.onlineUsers ?? 0})` },
+                  { id: "offline", label: `Offline (${data?.offlineUsers ?? 0})` },
+                  { id: "suspended", label: `Suspended (${data?.suspendedUsers ?? 0})` },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-2.5 py-1 rounded-lg transition-colors ${statusFilter === tab.id
+                      ? "bg-[#E8785A] text-white"
+                      : "text-[#6B7280] hover:text-[#111111] hover:bg-[#FAFAFB]"
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full lg:w-64">
             <FiSearch className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-3" />
             <input
               type="text"
@@ -337,11 +488,11 @@ export default function UsersPage() {
                 <th className="py-3 px-4">User</th>
                 <th className="py-3 px-4">Email</th>
                 <th className="py-3 px-4">Role</th>
-                <th className="py-3 px-4">Phone Number</th>
-                <th className="py-3 px-4">Last Seen</th>
+                <th className="py-3 px-4">Came Online (Online At)</th>
+                <th className="py-3 px-4">Went Offline (Offline At)</th>
                 <th className="py-3 px-4">Projects</th>
                 <th className="py-3 px-4">Email Verification</th>
-                <th className="py-3 px-4">Account Status</th>
+                <th className="py-3 px-4">Presence &amp; Status</th>
                 {isDeveloper && (
                   <th className="py-3 px-4 text-center">Actions</th>
                 )}
@@ -373,12 +524,14 @@ export default function UsersPage() {
                     colSpan={isDeveloper ? 9 : 8}
                     className="py-10 px-4 text-center text-[#6B7280]"
                   >
-                    No Studio accounts found.
+                    No Studio accounts match your current filter.
                   </td>
                 </tr>
               ) : (
                 paginatedUsers.map((user) => {
                   const roleBadge = getRoleBadge(user.role || user.defaultRole);
+                  const onlineRelative = formatRelativeTime(user.onlineAt);
+                  const offlineRelative = formatRelativeTime(user.offlineAt);
 
                   return (
                     <tr
@@ -395,8 +548,13 @@ export default function UsersPage() {
                       className="cursor-pointer hover:bg-[#FAFAFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#E8785A] transition-colors"
                     >
                       {/* Name */}
-                      <td className="py-3.5 px-4 font-bold text-[#111111]">
-                        {user.displayName}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-[#111111]">{user.displayName}</div>
+                        {user.phoneNumber && (
+                          <div className="text-[10px] text-[#9CA3AF] mt-0.5">
+                            {user.phoneNumber}
+                          </div>
+                        )}
                       </td>
 
                       {/* Email */}
@@ -416,14 +574,47 @@ export default function UsersPage() {
                         </span>
                       </td>
 
-                      {/* Phone */}
-                      <td className="py-3.5 px-4 text-[#6B7280]">
-                        {user.phoneNumber || "—"}
+                      {/* Came Online (Online At) */}
+                      <td className="py-3.5 px-4">
+                        {user.onlineAt ? (
+                          <div className="space-y-0.5">
+                            <div className="inline-flex items-center gap-1.5 font-medium text-[#111111]">
+                              <FiLogIn className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>{formatTimestamp(user.onlineAt)}</span>
+                            </div>
+                            {onlineRelative && (
+                              <div className="text-[10px] text-[#6B7280] pl-5">
+                                Started {onlineRelative}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[#9CA3AF]">No login recorded</span>
+                        )}
                       </td>
 
-                      {/* Last Seen */}
-                      <td className="py-3.5 px-4 text-[#6B7280]">
-                        {formatLastSeen(user.lastSeen)}
+                      {/* Went Offline (Offline At) */}
+                      <td className="py-3.5 px-4">
+                        {user.online ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Currently Online
+                          </span>
+                        ) : user.offlineAt ? (
+                          <div className="space-y-0.5">
+                            <div className="inline-flex items-center gap-1.5 font-medium text-[#374151]">
+                              <FiLogOut className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                              <span>{formatTimestamp(user.offlineAt)}</span>
+                            </div>
+                            {offlineRelative && (
+                              <div className="text-[10px] text-[#6B7280] pl-5">
+                                Offline {offlineRelative}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[#9CA3AF]">Never connected</span>
+                        )}
                       </td>
 
                       {/* Projects */}
@@ -438,8 +629,8 @@ export default function UsersPage() {
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.emailVerified
-                            ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                            : "text-amber-700 bg-amber-50 border-amber-200"
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                              : "text-amber-700 bg-amber-50 border-amber-200"
                             }`}
                         >
                           {user.emailVerified ? (
@@ -451,24 +642,35 @@ export default function UsersPage() {
                         </span>
                       </td>
 
-                      {/* Account Status */}
-                      <td className="py-3.5 px-4.5">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.disabled
-                            ? "text-red-700 bg-red-50 border-red-200"
-                            : user.online
-                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                              : "text-stone-700 bg-stone-100 border-stone-200"
-                            }`}
-                        >
-                          {user.disabled
-                            ? "Disabled"
-                            : user.online
-                              ? "Online"
-                              : user.lastSeen
-                                ? "Offline"
-                                : "No activity data"}
-                        </span>
+                      {/* Presence & Account Status */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Presence Badge */}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.online
+                                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                                : "text-stone-700 bg-stone-100 border-stone-200"
+                              }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${user.online ? "bg-emerald-500 animate-pulse" : "bg-stone-400"
+                                }`}
+                            />
+                            {user.online ? "Online" : "Offline"}
+                          </span>
+
+                          {/* Active / Suspended Badge */}
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${user.disabled || user.accountStatus === "suspended"
+                                ? "text-red-700 bg-red-50 border-red-200"
+                                : "text-blue-700 bg-blue-50 border-blue-200"
+                              }`}
+                          >
+                            {user.disabled || user.accountStatus === "suspended"
+                              ? "Suspended"
+                              : "Active"}
+                          </span>
+                        </div>
                       </td>
 
                       {/* DEVELOPER ONLY: Edit & Delete Actions */}
@@ -478,7 +680,6 @@ export default function UsersPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="inline-flex items-center gap-1.5 justify-center">
-                            {/* Edit Button */}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -489,10 +690,8 @@ export default function UsersPage() {
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#374151] bg-[#e8b45a]/10 border border-[#e8b45a59] hover:bg-[#e8b45a35] hover:text-[#e8785a] transition-colors shadow-2xs"
                             >
                               <FiEdit2 className="w-4 h-4 text-[#e8b45a]" />
-                              {/* <span>Edit</span> */}
                             </button>
 
-                            {/* Delete Button */}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -503,7 +702,6 @@ export default function UsersPage() {
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-600 bg-red-50/70 border border-red-200 hover:bg-red-100 hover:text-red-700 transition-colors shadow-2xs"
                             >
                               <FiTrash2 className="w-4 h-4" />
-                              {/* <span>Delete</span> */}
                             </button>
                           </div>
                         </td>
@@ -523,7 +721,7 @@ export default function UsersPage() {
                 : `Showing ${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(
                   currentPage * ITEMS_PER_PAGE,
                   filteredUsers.length
-                )} of ${filteredUsers.length} users`}
+                )} of ${filteredUsers.length} Studio users`}
             </p>
 
             <div className="flex items-center gap-2">
@@ -561,6 +759,7 @@ export default function UsersPage() {
         onClose={() => setSelectedUserForEdit(null)}
         user={selectedUserForEdit}
         onUserUpdated={handleUserUpdated}
+        apiEndpoint="/api/studio/users"
       />
 
       {/* Delete User Modal with Confirmation Flow */}
@@ -569,6 +768,7 @@ export default function UsersPage() {
         onClose={() => setSelectedUserForDelete(null)}
         user={selectedUserForDelete}
         onUserDeleted={handleUserDeleted}
+        apiEndpoint="/api/studio/users"
       />
     </div>
   );

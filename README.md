@@ -10,6 +10,10 @@
 - [Products](#-products)
   - [1. AI Studio Vertical](#1-ai-studio-vertical)
   - [2. Library Platform Vertical](#2-library-platform-vertical)
+- [Multi-Schema User Activity Tracking & Account Isolation](#-multi-schema-user-activity-tracking--account-isolation)
+  - [Database Architecture & Hasura Tracking](#database-architecture--hasura-tracking)
+  - [Session Lifecycle & Heartbeat Engine](#session-lifecycle--heartbeat-engine)
+  - [Studio & Library Users KPIs & Session Timestamps](#studio--library-users-kpis--session-timestamps)
 - [Role-Based Access Control (RBAC)](#-role-based-access-control-rbac)
   - [Roles Definition](#roles-definition)
   - [Permissions Matrix](#permissions-matrix)
@@ -40,8 +44,8 @@ Accessed via `/dashboard/studio` (Authorized: **Developer** only).
 | Route | View | Description |
 | :--- | :--- | :--- |
 | `/dashboard/studio` | **Studio Console** | Real-time KPI metrics, Cluster Health, Active Pipelines, Feature Utilization, and Recent Activity. |
-| `/dashboard/studio/users` | **Studio Users** | User directory, subscription plans (`Enterprise Studio`, `Creator Pro`, `Academic`), and token quotas. |
-| `/dashboard/studio/users/[id]` | **User Profile** | Deep-dive telemetry for a single studio tenant. |
+| `/dashboard/studio/users` | **Studio Users** | Strictly isolated **Studio** accounts, 5 KPI cards (Total Studio Accounts, Active Users, Online Users, Offline Users, Verified Emails), and per-user **Came Online** (`onlineAt`) & **Went Offline** (`offlineAt`) timestamps. |
+| `/dashboard/studio/users/[id]` | **User Profile** | Deep-dive telemetry for a single Studio tenant, including full **Studio Sessions History** (`Voice_Studio.user_sessions`), projects, payments, and AI usage. |
 | `/dashboard/studio/credits` | **Credits Ledger** | Enterprise token provisioning, combustion burn rate, and corporate tenant wallets. |
 | `/dashboard/studio/transactions` | **Transactions Ledger** | Billing records, payment gateway receipts (Stripe, Wire), and invoicing status. |
 | `/dashboard/studio/activity` | **Activity Logs** | Historical audit ledger of synthesis events, cluster executions, and security checks. |
@@ -69,7 +73,54 @@ Accessed via `/dashboard/library` (Authorized: **Developer**, **Admin**, **Autho
 | `/dashboard/library/messages` | **Direct Messages** | Editorial communication between review committee and authors. |
 | `/dashboard/library/notifications` | **Notifications** | Publication alerts and status updates. |
 | `/dashboard/library/activity` | **Library Activity** | Event ledger for publishing and editorial changes. |
-| `/dashboard/library/users` | **Library Users** | Reader community and account management. |
+| `/dashboard/library/users` | **Library Users** | Strictly isolated **Library** accounts (Authors & Readers), 5 KPI cards (Total Library Accounts, Active Users, Online Users, Offline Users, Verified Emails), and per-user **Came Online** & **Went Offline** timestamps. |
+| `/dashboard/library/users/[id]` | **Library User Profile** | Detailed Library user view with **Library Sessions History** (`libaray.user_sessions`), online/offline status, and author profiles. |
+
+---
+
+## 📡 Multi-Schema User Activity Tracking & Account Isolation
+
+The platform implements a **Multi-Schema User Activity & Presence System** that strictly isolates **Muejam Studio** accounts from **Muejam Library** accounts while tracking real-time online/offline sessions, active user counts, and account suspension cascades.
+
+### Database Architecture & Hasura Tracking
+
+Tracked across three PostgreSQL schemas in Hasura (`muejam_dev`):
+
+| Schema & Object | Hasura GraphQL Root | Purpose |
+| :--- | :--- | :--- |
+| `auth.user_activity` | `auth_user_activity` | Central product & status registry mapping each `user_id` to `product` (`'studio'` \| `'library'`), `account_status` (`'active'` \| `'suspended'`), and `last_login_at`. |
+| `"Voice_Studio".user_sessions` | `Voice_Studio_user_sessions` | Isolated Studio session log storing `started_at` (Came Online), `last_seen` (Heartbeat), `ended_at` (Went Offline), `ip_address`, and `user_agent`. |
+| `"Voice_Studio".user_presence` | `Voice_Studio_user_presence` | Real-time SQL view computing `status = 'online'` when `ended_at IS NULL` and `last_seen >= NOW() - INTERVAL '90 seconds'`. |
+| `libaray.user_sessions` | `libaray_user_sessions` | Isolated Library session log storing `started_at`, `last_seen`, `ended_at`, `ip_address`, and `user_agent`. |
+| `libaray.user_presence` | `libaray_user_presence` | Real-time SQL view computing `status = 'online'` vs `'offline'` for Library users using the 90-second heartbeat window. |
+| `auth.trg_cascade_user_suspension` | *(PostgreSQL Trigger)* | Automatically sets `ended_at = NOW()` on all active sessions in both `"Voice_Studio".user_sessions` and `libaray.user_sessions` whenever an account is suspended (`account_status = 'suspended'`). |
+
+### Session Lifecycle & Heartbeat Engine
+
+1. **Login & Session Creation (`POST /api/auth/token`)**:
+   - Verifies that the user is not disabled or suspended (`403 Account suspended`).
+   - Upserts `auth.user_activity` with the resolved `product` (`studio` or `library`) and `last_login_at = NOW()`.
+   - Inserts a new active session (`started_at = NOW()`, `last_seen = NOW()`) into the corresponding product schema.
+2. **Real-Time Client Heartbeat (`POST /api/session/heartbeat`)**:
+   - `useHeartbeat` (`src/hooks/useHeartbeat.ts`) and `<SessionTracker />` (`src/components/SessionTracker.tsx`) are mounted in `StudioLayoutClient` (`product="studio"`) and `LibraryLayoutClient` (`product="library"`).
+   - Pings `/api/session/heartbeat` every **30 seconds** while the tab is visible (and immediately on `visibilitychange` resume) to keep `last_seen` fresh within the **90-second** online presence threshold.
+3. **Logout & Session Termination (`POST /api/auth/logout`)**:
+   - Closes all active sessions (`ended_at = NOW()`, `last_seen = NOW()`) across `"Voice_Studio".user_sessions` and `libaray.user_sessions` before clearing authentication cookies, recording the exact timestamp the user went offline.
+
+### Studio & Library Users KPIs & Session Timestamps
+
+Both `/dashboard/studio/users` and `/dashboard/library/users` enforce strict account separation and expose:
+
+- **5 Real-Time KPI Cards**:
+  1. **Product Accounts (`Studio Accounts` / `Library Accounts`)**: Total accounts belonging to the current vertical, with a live counter and quick-switch link showing the isolated accounts in the other vertical.
+  2. **Active Users**: Count of enabled accounts (`account_status = 'active'` and `disabled = false`), alongside the count of suspended accounts.
+  3. **Online Users**: Users currently active within the last 90 seconds via the product's `user_presence` view.
+  4. **Offline Users**: Users whose sessions have ended or whose last heartbeat exceeded 90 seconds.
+  5. **Verified Emails**: Count of verified accounts (plus Author vs. Reader breakdown on the Library Users page).
+- **Per-User Online & Offline Timestamps**:
+  - **Came Online (`Online At`)**: Displays the exact session start timestamp (`started_at` / `last_login_at`) and relative time (e.g., `Started 12m ago`).
+  - **Went Offline (`Offline At`)**: Displays a live pulsing `Currently Online` badge while active, or the exact disconnect/logout timestamp (`ended_at` / `last_seen`) and relative time once offline.
+  - **Developer Controls**: Developers can edit user details, switch a user's assigned product (`studio` ↔ `library`), or suspend/disable an account (which immediately terminates active sessions).
 
 ---
 
@@ -131,26 +182,31 @@ Defined in `src/features/auth/permissions.ts`:
 src/
 ├── app/                  # Next.js 14 App Router
 │   ├── (auth)/           # Authentication flows (Login, Register, Forgot Password)
-│   ├── api/              # Secure server-side API endpoints (Auth & Studio)
+│   ├── api/              # Secure server-side API endpoints
+│   │   ├── auth/         # Token issuance, session creation & logout termination
+│   │   ├── session/      # Real-time 30s heartbeat endpoint (/api/session/heartbeat)
+│   │   ├── studio/       # Studio users, activity, credits & transactions APIs
+│   │   └── library/      # Isolated Library users & profile details APIs
 │   ├── dashboard/        # Main Dashboard application
-│   │   ├── studio/       # AI Studio Vertical pages & layouts
-│   │   ├── library/      # Library Platform Vertical pages & layouts
+│   │   ├── studio/       # AI Studio Vertical pages & layouts (with SessionTracker)
+│   │   ├── library/      # Library Platform Vertical pages & layouts (with SessionTracker)
 │   │   └── test-auth/    # Role validation tester (Developer only)
 │   └── unauthorized/     # 403 Access Denied fallback
 ├── components/           # UI Components
 │   ├── layout/           # Shared layout (Sidebar, Header, ProductSwitcher, SearchPalette)
 │   ├── studio/           # AI Studio specific UI (KPIs, Charts, Drawers, Modals)
 │   ├── library/          # Library Platform specific UI (ReviewCards, ActionModals)
-│   └── shared/           # Reusable generic UI components
+│   ├── shared/           # Reusable generic UI components
+│   └── SessionTracker.tsx # Invisible client heartbeat tracker mounted per product layout
 ├── features/             # Business Logic & Domains
 │   ├── auth/             # Roles, Permissions, Auth services
-│   ├── studio/           # Studio Context, Drawer state, Mock data
-│   └── library/          # Library domain services & types
+│   ├── studio/           # Studio service (isolated Studio users, KPIs & session telemetry)
+│   └── library/          # Library service (isolated Library users, KPIs & session telemetry)
 ├── graphql/              # Hasura GraphQL layer
 │   ├── client.ts         # Secure server-side executeGraphQL function
-│   ├── queries/          # GraphQL Query documents (Studio, Library, Auth)
+│   ├── queries/          # GraphQL Query documents (Studio, Library, Auth & User Activity)
 │   └── mutations/        # GraphQL Mutation documents
-├── hooks/                # Custom React hooks (useProduct, etc.)
+├── hooks/                # Custom React hooks (useHeartbeat, useProduct, etc.)
 ├── lib/                  # Utilities (server-auth.ts, cn helper)
 └── types/                # Core TypeScript definitions
 ```

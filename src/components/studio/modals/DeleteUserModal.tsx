@@ -7,13 +7,14 @@ import {
   FiTrash2,
   FiAlertCircle,
 } from "react-icons/fi";
-import type { StudioUser } from "@/features/studio/studio.service";
+import type { EditableUser } from "./EditUserModal";
 
 interface DeleteUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: StudioUser | null;
+  user: EditableUser | null;
   onUserDeleted: (userId: string) => void;
+  apiEndpoint?: string;
 }
 
 export function DeleteUserModal({
@@ -21,6 +22,7 @@ export function DeleteUserModal({
   onClose,
   user,
   onUserDeleted,
+  apiEndpoint = "/api/studio/users",
 }: DeleteUserModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function DeleteUserModal({
     setError(null);
 
     try {
-      const response = await fetch(`/api/studio/users?id=${encodeURIComponent(user.id)}`, {
+      const response = await fetch(`${apiEndpoint}?id=${encodeURIComponent(user.id)}`, {
         method: "DELETE",
       });
 

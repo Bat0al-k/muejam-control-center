@@ -12,14 +12,30 @@ import {
   FiSave,
   FiAlertTriangle,
   FiInfo,
+  FiLayers,
 } from "react-icons/fi";
 import type { StudioUser } from "@/features/studio/studio.service";
 
-interface EditUserModalProps {
+export interface EditableUser {
+  id: string;
+  displayName: string;
+  email: string;
+  phoneNumber: string | null;
+  emailVerified: boolean;
+  disabled: boolean;
+  accountStatus: "active" | "suspended";
+  product: "studio" | "library";
+  role: string;
+  defaultRole: string;
+  online: boolean;
+}
+
+interface EditUserModalProps<T extends EditableUser = StudioUser> {
   isOpen: boolean;
   onClose: () => void;
-  user: StudioUser | null;
-  onUserUpdated: (updatedUser: StudioUser) => void;
+  user: T | null;
+  onUserUpdated: (updatedUser: T) => void;
+  apiEndpoint?: string;
 }
 
 const AVAILABLE_ROLES = [
@@ -29,16 +45,18 @@ const AVAILABLE_ROLES = [
   { value: "user", label: "Standard User", description: "Standard platform consumer" },
 ];
 
-export function EditUserModal({
+export function EditUserModal<T extends EditableUser = StudioUser>({
   isOpen,
   onClose,
   user,
   onUserUpdated,
-}: EditUserModalProps) {
+  apiEndpoint = "/api/studio/users",
+}: EditUserModalProps<T>) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [role, setRole] = useState("author");
+  const [product, setProduct] = useState<"studio" | "library">("studio");
   const [emailVerified, setEmailVerified] = useState(false);
   const [disabled, setDisabled] = useState(false);
 
@@ -54,6 +72,7 @@ export function EditUserModal({
       setEmail(user.email ?? "");
       setPhoneNumber(user.phoneNumber ?? "");
       setRole(user.role || user.defaultRole || "author");
+      setProduct(user.product === "library" ? "library" : "studio");
       setEmailVerified(user.emailVerified ?? false);
       setDisabled(user.disabled ?? false);
       setStep("form");
@@ -106,6 +125,15 @@ export function EditUserModal({
       });
     }
 
+    const currentProduct = user.product || "studio";
+    if (product !== currentProduct) {
+      diffs.push({
+        field: "Platform Product",
+        from: currentProduct === "library" ? "Muejam Library" : "Muejam Studio",
+        to: product === "library" ? "Muejam Library" : "Muejam Studio",
+      });
+    }
+
     if (emailVerified !== user.emailVerified) {
       diffs.push({
         field: "Email Verification",
@@ -117,13 +145,13 @@ export function EditUserModal({
     if (disabled !== user.disabled) {
       diffs.push({
         field: "Account Status",
-        from: user.disabled ? "Disabled" : "Active",
-        to: disabled ? "Disabled" : "Active",
+        from: user.disabled ? "Suspended / Disabled" : "Active",
+        to: disabled ? "Suspended / Disabled" : "Active",
       });
     }
 
     return diffs;
-  }, [user, displayName, email, phoneNumber, role, emailVerified, disabled]);
+  }, [user, displayName, email, phoneNumber, role, product, emailVerified, disabled]);
 
   if (!isOpen || !user) return null;
 
@@ -153,7 +181,7 @@ export function EditUserModal({
     setError(null);
 
     try {
-      const response = await fetch("/api/studio/users", {
+      const response = await fetch(apiEndpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,6 +192,7 @@ export function EditUserModal({
           emailVerified,
           disabled,
           defaultRole: role,
+          product,
         }),
       });
 
@@ -174,15 +203,18 @@ export function EditUserModal({
       }
 
       // Propagate updated user object to parent
-      const updatedUser: StudioUser = {
+      const updatedUser: T = {
         ...user,
         displayName: displayName.trim(),
         email: email.trim().toLowerCase(),
         phoneNumber: phoneNumber.trim() || null,
         emailVerified,
         disabled,
+        accountStatus: disabled ? "suspended" : "active",
+        online: disabled ? false : user.online,
         role,
         defaultRole: role,
+        product,
       };
 
       onUserUpdated(updatedUser);
@@ -289,6 +321,22 @@ export function EditUserModal({
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Platform Product Separation Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#374151] flex items-center gap-1.5">
+                <FiLayers className="text-[#9CA3AF]" />
+                Assigned Platform Product <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={product}
+                onChange={(e) => setProduct(e.target.value === "library" ? "library" : "studio")}
+                className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#E8785A] transition-colors"
+              >
+                <option value="studio">Muejam Studio (Voice Studio Account)</option>
+                <option value="library">Muejam Library (Library Account)</option>
+              </select>
             </div>
 
             {/* Toggles: Email Verified & Account Disabled */}

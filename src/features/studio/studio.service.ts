@@ -29,6 +29,11 @@ import {
 
 import { GET_STUDIO_FEATURE_UTILIZATION } from "@/graphql/queries/studio/features";
 import {
+    GET_ALL_USERS_WITH_ACTIVITY,
+    UPSERT_USER_ACTIVITY,
+    TERMINATE_USER_ALL_SESSIONS,
+} from "@/graphql/queries/studio/users";
+import {
     UPDATE_STUDIO_USER,
     DELETE_STUDIO_USER,
 } from "@/graphql/mutations/studio/users";
@@ -151,13 +156,69 @@ interface UsersResponse {
         email_verified: boolean | null;
         disabled: boolean | null;
         default_role: string | null;
+        created_at?: string | null;
+        updated_at?: string | null;
     }[];
 }
 
-interface StudioUsersProjectsResponse {
+export interface AllUsersWithActivityResponse {
+    auth_users: {
+        id: string;
+        display_name: string | null;
+        email: string | null;
+        last_seen: string | null;
+        phone_number: string | null;
+        email_verified: boolean | null;
+        disabled: boolean | null;
+        default_role: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+    }[];
+    auth_user_activity: {
+        user_id: string;
+        last_login_at: string;
+        last_login_product: string;
+        account_status: string;
+        created_at: string;
+        updated_at: string;
+    }[];
+    Voice_Studio_user_presence: {
+        user_id: string;
+        is_online: boolean;
+        last_seen: string | null;
+    }[];
+    Voice_Studio_user_sessions: {
+        id: string;
+        user_id: string;
+        started_at: string;
+        last_seen: string;
+        ended_at: string | null;
+        user_agent: string | null;
+        ip_address: string | null;
+    }[];
     Voice_Studio_projects: {
         id: string;
         user_id: string;
+    }[];
+    libaray_user_presence: {
+        user_id: string;
+        is_online: boolean;
+        last_seen: string | null;
+    }[];
+    libaray_user_sessions: {
+        id: string;
+        user_id: string;
+        started_at: string;
+        last_seen: string;
+        ended_at: string | null;
+        user_agent: string | null;
+        ip_address: string | null;
+    }[];
+    libaray_Autor: {
+        id: string;
+        user_id: string | null;
+        name: string;
+        book_num: number;
     }[];
 }
 
@@ -166,20 +227,31 @@ export interface StudioUser {
     displayName: string;
     email: string;
     lastSeen: string | null;
+    onlineAt: string | null;
+    offlineAt: string | null;
+    lastLoginAt: string | null;
     phoneNumber: string | null;
     emailVerified: boolean;
     disabled: boolean;
+    accountStatus: "active" | "suspended";
+    product: "studio" | "library";
     role: string;
     defaultRole: string;
     projectCount: number;
+    sessionCount: number;
     online: boolean;
 }
 
 export interface StudioUsersData {
     users: StudioUser[];
     totalAccounts: number;
+    activeUsers: number;
+    suspendedUsers: number;
     onlineUsers: number;
+    offlineUsers: number;
     verifiedEmails: number;
+    isolatedLibraryAccounts: number;
+    totalPlatformAccounts: number;
 }
 
 // _______________________ Helpers _______________________
@@ -821,9 +893,63 @@ export async function getStudioActivityUsers(): Promise<
 }
 
 export async function getStudioUserActivityDetails(userId: string) {
-    const usersResult = await executeGraphQL<UsersResponse>(
-        GET_STUDIO_USERS,
-    );
+    const [usersResult, sessionDetailsResult] = await Promise.all([
+        executeGraphQL<UsersResponse>(GET_STUDIO_USERS),
+        executeGraphQL<{
+            auth_user_activity_by_pk: {
+                user_id: string;
+                last_login_at: string;
+                last_login_product: string;
+                account_status: string;
+                updated_at: string;
+            } | null;
+            Voice_Studio_user_presence: {
+                user_id: string;
+                is_online: boolean;
+                last_seen: string | null;
+            }[];
+            Voice_Studio_user_sessions: {
+                id: string;
+                user_id: string;
+                started_at: string;
+                last_seen: string;
+                ended_at: string | null;
+                user_agent: string | null;
+                ip_address: string | null;
+            }[];
+        }>(
+            `
+            query GetStudioUserSessionDetails($userId: uuid!) {
+                auth_user_activity_by_pk(user_id: $userId) {
+                    user_id
+                    last_login_at
+                    last_login_product
+                    account_status
+                    updated_at
+                }
+                Voice_Studio_user_presence(where: { user_id: { _eq: $userId } }) {
+                    user_id
+                    is_online
+                    last_seen
+                }
+                Voice_Studio_user_sessions(
+                    where: { user_id: { _eq: $userId } }
+                    order_by: { last_seen: desc }
+                    limit: 50
+                ) {
+                    id
+                    user_id
+                    started_at
+                    last_seen
+                    ended_at
+                    user_agent
+                    ip_address
+                }
+            }
+            `,
+            { userId },
+        ),
+    ]);
 
     const user = usersResult.auth_users.find(
         (item) => item.id === userId,
@@ -911,12 +1037,53 @@ export async function getStudioUserActivityDetails(userId: string) {
         amount: normalizePaymentAmount(p.amount, p.payment_method),
     }));
 
+    const activity = sessionDetailsResult.auth_user_activity_by_pk;
+    const presence = sessionDetailsResult.Voice_Studio_user_presence[0] ?? null;
+    const userSessions = sessionDetailsResult.Voice_Studio_user_sessions ?? [];
+    const latestSession = userSessions[0] ?? null;
+
+    const accountStatus: "active" | "suspended" =
+        user.disabled || activity?.account_status === "suspended"
+            ? "suspended"
+            : "active";
+
+    const isOnline =
+        accountStatus === "active" &&
+        !user.disabled &&
+        Boolean(presence?.is_online);
+
+    const onlineAt =
+        latestSession?.started_at ??
+        activity?.last_login_at ??
+        user.last_seen ??
+        null;
+
+    const offlineAt = isOnline
+        ? null
+        : latestSession?.ended_at ??
+          latestSession?.last_seen ??
+          presence?.last_seen ??
+          activity?.updated_at ??
+          user.last_seen ??
+          null;
+
     return {
         user: {
             id: user.id,
             name: user.display_name || user.email || "Unknown User",
             email: user.email,
+            phoneNumber: user.phone_number,
+            emailVerified: user.email_verified === true,
+            disabled: user.disabled === true || accountStatus === "suspended",
+            role: user.default_role || "author",
+            accountStatus,
+            product: (activity?.last_login_product === "library" ? "library" : "studio") as "studio" | "library",
+            online: isOnline,
+            onlineAt,
+            offlineAt,
+            lastSeen: presence?.last_seen ?? latestSession?.last_seen ?? user.last_seen ?? null,
         },
+        userSessions,
         projects,
         payments: normalizedPayments,
         aiUsage,
@@ -1179,62 +1346,165 @@ export async function getStudioFeatureUtilization(
 
 // __________________________________ Get Studio Users __________________________________
 
+const PRESENCE_WINDOW_MS = 90 * 1000; // 90 seconds per USER_ACTIVITY_AND_LTS_UPDATES.pdf
+
 export async function getStudioUsers(): Promise<StudioUsersData> {
-    const [usersResult, projectsResult] = await Promise.all([
-        executeGraphQL<UsersResponse>(GET_STUDIO_USERS),
-        executeGraphQL<StudioUsersProjectsResponse>(`
-            query GetAllStudioUserProjects {
-                Voice_Studio_projects {
-                    id
-                    user_id
-                }
-            }
-        `),
-    ]);
+    const data = await executeGraphQL<AllUsersWithActivityResponse>(
+        GET_ALL_USERS_WITH_ACTIVITY,
+    );
 
     const projectsCount = new Map<string, number>();
-
-    for (const project of projectsResult.Voice_Studio_projects) {
+    for (const project of data.Voice_Studio_projects) {
         projectsCount.set(
             project.user_id,
             (projectsCount.get(project.user_id) ?? 0) + 1,
         );
     }
 
-    const now = Date.now();
-    const onlineThreshold = 5 * 60 * 1000;
+    const activityMap = new Map(
+        data.auth_user_activity.map((item) => [item.user_id, item]),
+    );
 
-    const users: StudioUser[] = usersResult.auth_users.map((user) => {
-        const lastSeenTime = user.last_seen
-            ? new Date(user.last_seen).getTime()
+    const studioPresenceMap = new Map(
+        data.Voice_Studio_user_presence.map((item) => [item.user_id, item]),
+    );
+
+    const studioSessionsMap = new Map<
+        string,
+        AllUsersWithActivityResponse["Voice_Studio_user_sessions"]
+    >();
+    for (const session of data.Voice_Studio_user_sessions) {
+        const list = studioSessionsMap.get(session.user_id) ?? [];
+        list.push(session);
+        studioSessionsMap.set(session.user_id, list);
+    }
+
+    const now = Date.now();
+    const studioUsers: StudioUser[] = [];
+    let isolatedLibraryAccounts = 0;
+
+    for (const user of data.auth_users) {
+        const activity = activityMap.get(user.id);
+        const userProjects = projectsCount.get(user.id) ?? 0;
+        const userStudioSessions = studioSessionsMap.get(user.id) ?? [];
+
+        // Strict product separation per USER_ACTIVITY_AND_LTS_UPDATES.pdf:
+        // Use auth.user_activity.last_login_product when recorded; fallback to Studio role/activity
+        let product: "studio" | "library";
+        if (
+            activity?.last_login_product === "studio" ||
+            activity?.last_login_product === "library"
+        ) {
+            product = activity.last_login_product;
+        } else if (
+            user.default_role === "admin" ||
+            user.default_role === "me" ||
+            userProjects > 0 ||
+            userStudioSessions.length > 0
+        ) {
+            product = "studio";
+        } else {
+            product = "library";
+        }
+
+        if (product !== "studio") {
+            isolatedLibraryAccounts += 1;
+            continue;
+        }
+
+        const presence = studioPresenceMap.get(user.id);
+        const latestSession = userStudioSessions[0] ?? null;
+
+        const accountStatus: "active" | "suspended" =
+            user.disabled || activity?.account_status === "suspended"
+                ? "suspended"
+                : "active";
+
+        const isDisabled = user.disabled === true || accountStatus === "suspended";
+
+        const sessionLastSeenMs = latestSession?.last_seen
+            ? new Date(latestSession.last_seen).getTime()
             : Number.NaN;
 
-        const online =
-            !user.disabled &&
-            Number.isFinite(lastSeenTime) &&
-            now - lastSeenTime >= 0 &&
-            now - lastSeenTime <= onlineThreshold;
+        const isSessionLive =
+            latestSession != null &&
+            latestSession.ended_at == null &&
+            Number.isFinite(sessionLastSeenMs) &&
+            now - sessionLastSeenMs >= -5000 &&
+            now - sessionLastSeenMs <= PRESENCE_WINDOW_MS;
 
-        return {
+        const online =
+            !isDisabled && (presence?.is_online === true || isSessionLive);
+
+        const onlineAt =
+            latestSession?.started_at ??
+            activity?.last_login_at ??
+            user.last_seen ??
+            user.created_at ??
+            null;
+
+        const offlineAt = online
+            ? null
+            : latestSession?.ended_at ??
+              latestSession?.last_seen ??
+              presence?.last_seen ??
+              activity?.updated_at ??
+              user.last_seen ??
+              null;
+
+        const lastSeen =
+            presence?.last_seen ??
+            latestSession?.last_seen ??
+            activity?.last_login_at ??
+            user.last_seen ??
+            null;
+
+        studioUsers.push({
             id: user.id,
             displayName: user.display_name?.trim() || "Unnamed User",
             email: user.email ?? "",
-            lastSeen: user.last_seen,
+            lastSeen,
+            onlineAt,
+            offlineAt,
+            lastLoginAt: activity?.last_login_at ?? onlineAt,
             phoneNumber: user.phone_number,
             emailVerified: user.email_verified === true,
-            disabled: user.disabled === true,
+            disabled: isDisabled,
+            accountStatus,
+            product: "studio",
             role: user.default_role || "author",
             defaultRole: user.default_role || "author",
-            projectCount: projectsCount.get(user.id) ?? 0,
+            projectCount: userProjects,
+            sessionCount: userStudioSessions.length,
             online,
-        };
+        });
+    }
+
+    // Sort: Online users first, then by most recent onlineAt / lastSeen
+    studioUsers.sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        const timeA = a.onlineAt ? new Date(a.onlineAt).getTime() : 0;
+        const timeB = b.onlineAt ? new Date(b.onlineAt).getTime() : 0;
+        return timeB - timeA;
     });
 
+    const activeUsers = studioUsers.filter(
+        (user) => user.accountStatus === "active" && !user.disabled,
+    ).length;
+    const suspendedUsers = studioUsers.length - activeUsers;
+    const onlineUsers = studioUsers.filter((user) => user.online).length;
+    const offlineUsers = studioUsers.length - onlineUsers;
+
     return {
-        users,
-        totalAccounts: users.length,
-        onlineUsers: users.filter((user) => user.online).length,
-        verifiedEmails: users.filter((user) => user.emailVerified).length,
+        users: studioUsers,
+        totalAccounts: studioUsers.length,
+        activeUsers,
+        suspendedUsers,
+        onlineUsers,
+        offlineUsers,
+        verifiedEmails: studioUsers.filter((user) => user.emailVerified).length,
+        isolatedLibraryAccounts,
+        totalPlatformAccounts: data.auth_users.length,
     };
 }
 
@@ -1247,6 +1517,7 @@ export interface UpdateStudioUserData {
     emailVerified?: boolean;
     disabled?: boolean;
     defaultRole?: string;
+    product?: "studio" | "library";
 }
 
 export async function updateStudioUser(
@@ -1278,7 +1549,36 @@ export async function updateStudioUser(
         throw new Error("User not found or update failed.");
     }
 
-    return result.update_auth_users_by_pk;
+    const updated = result.update_auth_users_by_pk;
+    const nowIso = new Date().toISOString();
+    const accountStatus = updated.disabled ? "suspended" : "active";
+
+    // Sync auth.user_activity and enforce Administrative Suspension Cascade (PDF Section 2.5)
+    try {
+        const targetProduct =
+            updates.product ??
+            (updated.default_role === "admin" || updated.default_role === "me"
+                ? "studio"
+                : "studio");
+
+        await executeGraphQL(UPSERT_USER_ACTIVITY, {
+            userId: id,
+            product: targetProduct,
+            accountStatus,
+            now: nowIso,
+        });
+
+        if (accountStatus === "suspended") {
+            await executeGraphQL(TERMINATE_USER_ALL_SESSIONS, {
+                userId: id,
+                now: nowIso,
+            });
+        }
+    } catch (err) {
+        console.error("Failed to sync user_activity status:", err);
+    }
+
+    return updated;
 }
 
 export async function deleteStudioUser(id: string) {

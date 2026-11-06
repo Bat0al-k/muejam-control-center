@@ -20,6 +20,7 @@ import {
   FiLogOut,
   FiCheck,
   FiX,
+  FiBookOpen,
 } from "react-icons/fi";
 
 interface SidebarProps {
@@ -47,8 +48,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Close sidebar on route change (mobile)
   useEffect(() => {
     if (onClose) onClose();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  const isLibrary = pathname?.startsWith("/dashboard/library");
 
   const studioNavItems = [
     { label: "Studio Overview", href: "/dashboard/studio", icon: FiActivity },
@@ -56,6 +59,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { label: "Credits", href: "/dashboard/studio/credits", icon: FiCreditCard },
     { label: "Transactions", href: "/dashboard/studio/transactions", icon: FiFileText },
     { label: "Activity Logs", href: "/dashboard/studio/activity", icon: FiFileText },
+  ];
+
+  const libraryNavItems = [
+    { label: "Library Overview", href: "/dashboard/library", icon: FiBookOpen },
+    { label: "Library Users", href: "/dashboard/library/users", icon: FiUsers },
+    { label: "Books", href: "/dashboard/library/books", icon: FiFileText },
+    { label: "Authors", href: "/dashboard/library/authors", icon: FiUsers },
+    { label: "Library Activity", href: "/dashboard/library/activity", icon: FiActivity },
   ];
 
   const platformNavItems = [
@@ -92,58 +103,113 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Studio Mode / Workspace Box */}
         <div className="p-3">
-          <button
-            onClick={() => openDrawer({ type: "environment" })}
-            className="w-full text-left p-3 rounded-xl border border-[#E5E7EB] bg-[#FAF8F5] hover:border-[#D1D5DB] transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between text-xs mb-2">
-              <div className="flex items-center gap-1.5 font-bold text-[#111111]">
-                <span className="w-2 h-2 rounded-full bg-[#cf4c1d]" />
-                <span>Studio Mode</span>
+          {!isLibrary ?
+            <button
+              onClick={() => openDrawer({ type: "environment" })}
+              className="w-full text-left p-3 rounded-xl border border-[#E5E7EB] bg-[#FAF8F5] hover:border-[#D1D5DB] transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between text-xs mb-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#111111]">
+                  <span className="w-2 h-2 rounded-full bg-[#cf4c1d]" />
+                  <span>Studio Mode</span>
+                </div>
+                <span className="text-[11px] font-mono text-[#6B7280] bg-[#ffffff] px-1 py-0.5 rounded">v2.4</span>
               </div>
-              <span className="text-[11px] font-mono text-[#6B7280] bg-[#ffffff] px-1 py-0.5 rounded">v2.4</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
-              <span>Active Workspace</span>
-              <span className="text-[#cf4c1d] font-semibold flex items-center gap-1">
-                Online
-              </span>
-            </div>
-          </button>
+              <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
+                <span>Active Workspace</span>
+                <span className="text-[#cf4c1d] font-semibold flex items-center gap-1">
+                  Online
+                </span>
+              </div>
+            </button>
+            :
+            <button
+              onClick={() => openDrawer({ type: "environment" })}
+              className="w-full text-left p-3 rounded-xl border border-[#E5E7EB] bg-[#FAF8F5] hover:border-[#D1D5DB] transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between text-xs mb-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#111111]">
+                  <span className="w-2 h-2 rounded-full bg-[#cf4c1d]" />
+                  <span>Library Mode</span>
+                </div>
+                <span className="text-[11px] font-mono text-[#6B7280] bg-[#ffffff] px-1 py-0.5 rounded">v2.4</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
+                <span>Active Workspace</span>
+                <span className="text-[#cf4c1d] font-semibold flex items-center gap-1">
+                  Online
+                </span>
+              </div>
+            </button>
+          }
         </div>
 
         {/* Navigation Sections */}
         <div className="px-3 space-y-6">
-          {/* AI STUDIO VERTICAL */}
-          <div className="space-y-1">
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-              AI STUDIO VERTICAL
-            </div>
-            {studioNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.href === "/dashboard/studio"
-                  ? pathname === "/dashboard/studio"
-                  : pathname?.startsWith(item.href);
+          {!isLibrary ? (
+            /* AI STUDIO VERTICAL */
+            <div className="space-y-1">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                AI STUDIO VERTICAL
+              </div>
+              {studioNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  item.href === "/dashboard/studio"
+                    ? pathname === "/dashboard/studio"
+                    : pathname?.startsWith(item.href);
 
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${isActive
-                    ? "bg-[#FFF3EE] text-[#E8785A] border border-[#FCD9CE]"
-                    : "text-[#4B5563] hover:text-[#111111] hover:bg-[#F9FAFB]"
-                    }`}
-                >
-                  <Icon
-                    className={`w-4 h-4 ${isActive ? "text-[#E8785A]" : "text-[#6B7280]"
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${isActive
+                      ? "bg-[#FFF3EE] text-[#E8785A] border border-[#FCD9CE]"
+                      : "text-[#4B5563] hover:text-[#111111] hover:bg-[#F9FAFB]"
                       }`}
-                  />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+                  >
+                    <Icon
+                      className={`w-4 h-4 ${isActive ? "text-[#E8785A]" : "text-[#6B7280]"
+                        }`}
+                    />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            /* MUEJAM LIBRARY VERTICAL */
+            <div className="space-y-1">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                MUEJAM LIBRARY VERTICAL
+              </div>
+              {libraryNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  item.href === "/dashboard/library"
+                    ? pathname === "/dashboard/library"
+                    : pathname?.startsWith(item.href);
+
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${isActive
+                      ? "bg-[#FFF3EE] text-[#E8785A] border border-[#FCD9CE]"
+                      : "text-[#4B5563] hover:text-[#111111] hover:bg-[#F9FAFB]"
+                      }`}
+                  >
+                    <Icon
+                      className={`w-4 h-4 ${isActive ? "text-[#E8785A]" : "text-[#6B7280]"
+                        }`}
+                    />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
 
           {/* PLATFORM CORE */}
           <div className="space-y-1">

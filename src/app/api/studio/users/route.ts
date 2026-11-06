@@ -76,6 +76,7 @@ export async function PATCH(request: NextRequest) {
             emailVerified,
             disabled,
             defaultRole,
+            product,
         } = body;
 
         if (!id || typeof id !== "string") {
@@ -92,6 +93,7 @@ export async function PATCH(request: NextRequest) {
             emailVerified: typeof emailVerified === "boolean" ? emailVerified : undefined,
             disabled: typeof disabled === "boolean" ? disabled : undefined,
             defaultRole: typeof defaultRole === "string" ? defaultRole : undefined,
+            product: product === "library" || product === "studio" ? product : "studio",
         });
 
         return NextResponse.json({

@@ -15,6 +15,9 @@ import {
     FiTrash2,
     FiCheck,
     FiPlus,
+    FiClock,
+    FiLogIn,
+    FiLogOut,
 } from "react-icons/fi";
 import { EditUserModal } from "@/components/studio/modals/EditUserModal";
 import { DeleteUserModal } from "@/components/studio/modals/DeleteUserModal";
@@ -29,7 +32,18 @@ interface StudioUserDetails {
         id: string;
         name: string;
         email: string | null;
+        phoneNumber?: string | null;
+        emailVerified?: boolean;
+        disabled?: boolean;
+        role?: string;
+        product?: "studio" | "library";
+        accountStatus?: "active" | "suspended";
+        online?: boolean;
+        onlineAt?: string | null;
+        offlineAt?: string | null;
+        lastSeen?: string | null;
     };
+    userSessions?: ActivityRecord[];
     projects: ActivityRecord[];
     payments: ActivityRecord[];
     aiUsage: ActivityRecord[];
@@ -40,6 +54,7 @@ interface StudioUserDetails {
 }
 
 const activitySections = [
+    { key: "userSessions", title: "Studio Sessions History (Online / Offline)", icon: FiClock },
     { key: "projects", title: "Projects", icon: FiFolder },
     { key: "payments", title: "Payments & Transactions", icon: FiCreditCard },
     { key: "aiUsage", title: "AI Usage", icon: FiActivity },
@@ -288,7 +303,7 @@ export default function StudioUserDetailsPage() {
 
     const totalRecords = data
         ? activitySections.reduce(
-            (total, section) => total + data[section.key].length,
+            (total, section) => total + (data[section.key]?.length ?? 0),
             0,
         )
         : 0;
@@ -298,14 +313,20 @@ export default function StudioUserDetailsPage() {
             id: data.user.id,
             displayName: data.user.name,
             email: data.user.email || "",
-            lastSeen: null,
-            phoneNumber: null,
-            emailVerified: false,
-            disabled: false,
-            role: "author",
-            defaultRole: "author",
+            lastSeen: data.user.lastSeen ?? null,
+            onlineAt: data.user.onlineAt ?? null,
+            offlineAt: data.user.offlineAt ?? null,
+            lastLoginAt: data.user.onlineAt ?? null,
+            phoneNumber: data.user.phoneNumber ?? null,
+            emailVerified: Boolean(data.user.emailVerified),
+            disabled: Boolean(data.user.disabled),
+            accountStatus: data.user.accountStatus || (data.user.disabled ? "suspended" : "active"),
+            product: data.user.product || "studio",
+            role: data.user.role || "author",
+            defaultRole: data.user.role || "author",
             projectCount: data.projects.length,
-            online: false,
+            online: Boolean(data.user.online),
+            sessionCount: data.userSessions?.length ?? 0,
         }
         : null;
 
@@ -421,20 +442,71 @@ export default function StudioUserDetailsPage() {
                             </div>
 
                             <div className="min-w-0 flex-1">
-                                <h2 className="break-words text-xl font-bold text-[#111111]">
-                                    {data.user.name}
-                                </h2>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="break-words text-xl font-bold text-[#111111]">
+                                        {data.user.name}
+                                    </h2>
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                            data.user.online
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                : "bg-stone-100 text-stone-700 border-stone-200"
+                                        }`}
+                                    >
+                                        <span
+                                            className={`w-1.5 h-1.5 rounded-full ${
+                                                data.user.online ? "bg-emerald-500 animate-pulse" : "bg-stone-400"
+                                            }`}
+                                        />
+                                        {data.user.online ? "Online" : "Offline"}
+                                    </span>
+                                    <span
+                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                            data.user.accountStatus === "suspended" || data.user.disabled
+                                                ? "bg-red-50 text-red-700 border-red-200"
+                                                : "bg-blue-50 text-blue-700 border-blue-200"
+                                        }`}
+                                    >
+                                        {data.user.accountStatus === "suspended" || data.user.disabled
+                                            ? "Suspended"
+                                            : "Active Account"}
+                                    </span>
+                                </div>
                                 <p className="mt-1 break-all text-sm text-[#6B7280]">
                                     {data.user.email || "No email available"}
                                 </p>
 
-                                <div className="mt-4">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-                                        User ID
-                                    </p>
-                                    <p className="mt-1 break-all font-mono text-xs text-[#374151]">
-                                        {data.user.id}
-                                    </p>
+                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                                            User ID
+                                        </p>
+                                        <p className="mt-1 break-all font-mono text-xs text-[#374151]">
+                                            {data.user.id}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF] flex items-center gap-1">
+                                            <FiLogIn className="text-emerald-600" /> Came Online (Online At)
+                                        </p>
+                                        <p className="mt-1 text-xs font-semibold text-[#111111]">
+                                            {data.user.onlineAt
+                                                ? new Date(data.user.onlineAt).toLocaleString()
+                                                : "No login recorded"}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF] flex items-center gap-1">
+                                            <FiLogOut className="text-stone-500" /> Went Offline (Offline At)
+                                        </p>
+                                        <p className="mt-1 text-xs font-semibold text-[#111111]">
+                                            {data.user.online
+                                                ? "Currently Online"
+                                                : data.user.offlineAt
+                                                  ? new Date(data.user.offlineAt).toLocaleString()
+                                                  : "Never connected"}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -505,7 +577,7 @@ export default function StudioUserDetailsPage() {
                             key={section.key}
                             title={section.title}
                             icon={section.icon}
-                            rows={data[section.key]}
+                            rows={data[section.key] ?? []}
                             actionButton={
                                 section.key === "payments" && isDeveloper ? (
                                     <button
