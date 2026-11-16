@@ -892,3 +892,7 @@ export function useStudio() {
   }
   return context;
 }
+
+export function useStudioOptional() {
+  return useContext(StudioContext);
+}

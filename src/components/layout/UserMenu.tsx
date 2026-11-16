@@ -1,14 +1,22 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useStudio } from "@/features/studio/context";
-import { useRouter } from "next/navigation";
+import { useStudioOptional } from "@/features/studio/context";
+import { useLibraryOptional } from "@/features/library/context";
+import { usePathname, useRouter } from "next/navigation";
 import { FiChevronDown, FiUser, FiSettings, FiLogOut, FiShield } from "react-icons/fi";
 
 import { logout } from "@/features/auth/auth.utils";
 
 export function UserMenu() {
-  const { showToast } = useStudio();
+  const studio = useStudioOptional();
+  const library = useLibraryOptional();
+  const pathname = usePathname();
+  const isLibrary = pathname?.startsWith("/dashboard/library");
+  const showToast = (type: "success" | "error" | "info", message: string) => {
+    if (library) library.showToast(type, message);
+    else if (studio) studio.showToast(type, message);
+  };
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -66,12 +74,12 @@ export function UserMenu() {
             <button
               onClick={() => {
                 setIsOpen(false);
-                router.push("/dashboard/studio/users"); // هنا بروفايله م الاستودسو نقسه 
+                router.push(isLibrary ? "/dashboard/library/users" : "/dashboard/studio/users");
               }}
               className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-[#374151] hover:bg-[#FFF5F2] hover:text-[#E8785A] transition-colors"
             >
               <FiUser className="w-3.5 h-3.5" />
-              <span>Studio Profile</span>
+              <span>{isLibrary ? "Library Accounts" : "Studio Profile"}</span>
             </button>
             <button
               onClick={() => {

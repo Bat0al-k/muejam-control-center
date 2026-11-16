@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useStudio } from "@/features/studio/context";
-import { useRouter } from "next/navigation";
-import { FiSearch, FiX, FiCpu, FiUser, FiActivity, FiArrowRight } from "react-icons/fi";
+import { useStudioOptional } from "@/features/studio/context";
+import { useLibraryOptional } from "@/features/library/context";
+import { usePathname, useRouter } from "next/navigation";
+import { FiSearch, FiX, FiCpu, FiUser, FiActivity, FiArrowRight, FiBookOpen } from "react-icons/fi";
 
 interface SearchPaletteProps {
   isOpen: boolean;
@@ -11,7 +12,10 @@ interface SearchPaletteProps {
 }
 
 export function SearchPalette({ isOpen, onClose }: SearchPaletteProps) {
-  const { openDrawer } = useStudio();
+  const studio = useStudioOptional();
+  const library = useLibraryOptional();
+  const pathname = usePathname();
+  const isLibrary = pathname?.startsWith("/dashboard/library") || Boolean(library && !studio);
   const router = useRouter();
   const [query, setQuery] = useState("");
 
@@ -34,35 +38,49 @@ export function SearchPalette({ isOpen, onClose }: SearchPaletteProps) {
 
   if (!isOpen) return null;
 
-  const quickItems = [
-    {
-      category: "Pipelines & Jobs",
-      items: [
-        { label: "Job #3842: StyleGAN HD Cover (94%)", action: () => openDrawer({ type: "pipelineDetails", pipelineId: "3842" }), icon: FiCpu },
-        { label: "Job #3847: Arabic Voice Clone (62%)", action: () => openDrawer({ type: "pipelineDetails", pipelineId: "3847" }), icon: FiCpu },
-        { label: "Job #3850: Podcast Transcription (Queued)", action: () => openDrawer({ type: "pipelineDetails", pipelineId: "3850" }), icon: FiCpu },
-        { label: "Job #3851: Marketing Video Reel (81%)", action: () => openDrawer({ type: "pipelineDetails", pipelineId: "3851" }), icon: FiCpu },
-      ],
-    },
-    {
-      category: "Navigation & Telemetry",
-      items: [
-        { label: "Studio Environment & Cluster Telemetry", action: () => openDrawer({ type: "environment" }), icon: FiActivity },
-        { label: "GPU Resource Usage (72.4 GB / 96 GB)", action: () => openDrawer({ type: "gpuUsage" }), icon: FiActivity },
-        { label: "Model Fine-Tuning: Muejam Pose-v2", action: () => openDrawer({ type: "modelTraining" }), icon: FiActivity },
-        { label: "Navigate to Credits Ledger", action: () => router.push("/dashboard/studio/credits"), icon: FiArrowRight },
-        { label: "Navigate to Activity Logs", action: () => router.push("/dashboard/studio/activity"), icon: FiArrowRight },
-      ],
-    },
-    {
-      category: "Creators & Accounts",
-      items: [
-        { label: "Sarah Lin [Creator Pro]", action: () => openDrawer({ type: "creators" }), icon: FiUser },
-        { label: "Marcus Vance [Enterprise Studio]", action: () => openDrawer({ type: "creators" }), icon: FiUser },
-        { label: "Dr. Aris Thorne [Academic Tier]", action: () => openDrawer({ type: "creators" }), icon: FiUser },
-      ],
-    },
-  ];
+  const openDrawer = studio?.openDrawer;
+
+  const quickItems = isLibrary
+    ? [
+        {
+          category: "Editorial & Catalog",
+          items: [
+            { label: "Library Overview & Review Queue", action: () => router.push("/dashboard/library"), icon: FiBookOpen },
+            { label: "Library Users & Authors", action: () => router.push("/dashboard/library/users"), icon: FiUser },
+            { label: "Books Catalog", action: () => router.push("/dashboard/library/books"), icon: FiBookOpen },
+            { label: "Library Sync & Telemetry", action: () => library?.openDrawer({ type: "environment" }), icon: FiActivity },
+          ],
+        },
+      ]
+    : [
+        {
+          category: "Pipelines & Jobs",
+          items: [
+            { label: "Job #3842: StyleGAN HD Cover (94%)", action: () => openDrawer?.({ type: "pipelineDetails", pipelineId: "3842" }), icon: FiCpu },
+            { label: "Job #3847: Arabic Voice Clone (62%)", action: () => openDrawer?.({ type: "pipelineDetails", pipelineId: "3847" }), icon: FiCpu },
+            { label: "Job #3850: Podcast Transcription (Queued)", action: () => openDrawer?.({ type: "pipelineDetails", pipelineId: "3850" }), icon: FiCpu },
+            { label: "Job #3851: Marketing Video Reel (81%)", action: () => openDrawer?.({ type: "pipelineDetails", pipelineId: "3851" }), icon: FiCpu },
+          ],
+        },
+        {
+          category: "Navigation & Telemetry",
+          items: [
+            { label: "Studio Environment & Cluster Telemetry", action: () => openDrawer?.({ type: "environment" }), icon: FiActivity },
+            { label: "GPU Resource Usage (72.4 GB / 96 GB)", action: () => openDrawer?.({ type: "gpuUsage" }), icon: FiActivity },
+            { label: "Model Fine-Tuning: Muejam Pose-v2", action: () => openDrawer?.({ type: "modelTraining" }), icon: FiActivity },
+            { label: "Navigate to Credits Ledger", action: () => router.push("/dashboard/studio/credits"), icon: FiArrowRight },
+            { label: "Navigate to Activity Logs", action: () => router.push("/dashboard/studio/activity"), icon: FiArrowRight },
+          ],
+        },
+        {
+          category: "Creators & Accounts",
+          items: [
+            { label: "Sarah Lin [Creator Pro]", action: () => openDrawer?.({ type: "creators" }), icon: FiUser },
+            { label: "Marcus Vance [Enterprise Studio]", action: () => openDrawer?.({ type: "creators" }), icon: FiUser },
+            { label: "Dr. Aris Thorne [Academic Tier]", action: () => openDrawer?.({ type: "creators" }), icon: FiUser },
+          ],
+        },
+      ];
 
   const filtered = quickItems.map((group) => ({
     category: group.category,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { StudioProvider } from "@/features/studio/context";
+import { LibraryProvider } from "@/features/library/context";
 import { SessionTracker } from "@/components/SessionTracker";
 
 export function LibraryLayoutClient({
@@ -26,7 +26,7 @@ export function LibraryLayoutClient({
   }, []);
 
   return (
-    <StudioProvider>
+    <LibraryProvider>
       <SessionTracker product="library" />
       <div className="flex min-h-screen bg-[#FAF8F5] text-[#111111] antialiased">
         {/* Left Sidebar */}
@@ -41,6 +41,6 @@ export function LibraryLayoutClient({
           </main>
         </div>
       </div>
-    </StudioProvider>
+    </LibraryProvider>
   );
 }

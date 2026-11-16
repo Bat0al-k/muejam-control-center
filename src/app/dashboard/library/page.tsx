@@ -1,5 +1,6 @@
 import { getCurrentAuth, hasPermission } from "@/lib/server-auth";
 import { PERMISSIONS } from "@/features/auth/permissions";
+import { LibraryConsole } from "@/components/library/LibraryConsole";
 import { redirect } from "next/navigation";
 
 export default async function LibraryPage() {
@@ -13,9 +14,5 @@ export default async function LibraryPage() {
     redirect("/unauthorized");
   }
 
-  return (
-    <main>
-      <h1>LibraryPage</h1>
-    </main>
-  );
+  return <LibraryConsole />;
 }

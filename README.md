@@ -76,8 +76,6 @@ Accessed via `/dashboard/library` (Authorized: **Developer**, **Admin**, **Autho
 | `/dashboard/library/users` | **Library Users** | Strictly isolated **Library** accounts (Authors & Readers), 5 KPI cards (Total Library Accounts, Active Users, Online Users, Offline Users, Verified Emails), and per-user **Came Online** & **Went Offline** timestamps. |
 | `/dashboard/library/users/[id]` | **Library User Profile** | Detailed Library user view with **Library Sessions History** (`libaray.user_sessions`), online/offline status, and author profiles. |
 
----
-
 ## 📡 Multi-Schema User Activity Tracking & Account Isolation
 
 The platform implements a **Multi-Schema User Activity & Presence System** that strictly isolates **Muejam Studio** accounts from **Muejam Library** accounts while tracking real-time online/offline sessions, active user counts, and account suspension cascades.
@@ -121,8 +119,6 @@ Both `/dashboard/studio/users` and `/dashboard/library/users` enforce strict acc
   - **Came Online (`Online At`)**: Displays the exact session start timestamp (`started_at` / `last_login_at`) and relative time (e.g., `Started 12m ago`).
   - **Went Offline (`Offline At`)**: Displays a live pulsing `Currently Online` badge while active, or the exact disconnect/logout timestamp (`ended_at` / `last_seen`) and relative time once offline.
   - **Developer Controls**: Developers can edit user details, switch a user's assigned product (`studio` ↔ `library`), or suspend/disable an account (which immediately terminates active sessions).
-
----
 
 ## 🔐 Role-Based Access Control (RBAC)
 

@@ -1,11 +1,23 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useStudio } from "@/features/studio/context";
+import { useStudioOptional } from "@/features/studio/context";
+import { useLibraryOptional } from "@/features/library/context";
 import { FiBell, FiAlertCircle, FiAlertTriangle, FiArrowRight } from "react-icons/fi";
 
 export function NotificationMenu() {
-  const { alerts, openDrawer } = useStudio();
+  const studio = useStudioOptional();
+  const library = useLibraryOptional();
+  const alerts = studio
+    ? studio.alerts.map((a) => ({
+        id: a.id,
+        severity: a.severity,
+        type: a.type,
+        message: a.message,
+        time: a.time,
+        node: a.clusterNode,
+      }))
+    : library?.alerts ?? [];
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -21,7 +33,11 @@ export function NotificationMenu() {
 
   const handleOpenAlerts = () => {
     setIsOpen(false);
-    openDrawer({ type: "alerts" });
+    if (studio) {
+      studio.openDrawer({ type: "alerts" });
+    } else if (library) {
+      library.openDrawer({ type: "environment" });
+    }
   };
 
   return (
@@ -67,7 +83,7 @@ export function NotificationMenu() {
                   {alert.message}
                 </p>
                 <span className="text-[10px] text-[#9CA3AF] block font-mono">
-                  {alert.time} · {alert.clusterNode}
+                  {alert.time} · {alert.node}
                 </span>
               </div>
             ))}

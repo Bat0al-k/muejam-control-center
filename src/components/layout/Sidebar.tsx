@@ -4,10 +4,12 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useStudio } from "@/features/studio/context";
+import { useStudioOptional } from "@/features/studio/context";
+import { useLibraryOptional } from "@/features/library/context";
 import { logout } from "@/features/auth/auth.utils";
 import {
   FiActivity,
+  FiLayout,
   FiUsers,
   FiCreditCard,
   FiFileText,
@@ -21,6 +23,10 @@ import {
   FiCheck,
   FiX,
   FiBookOpen,
+  // FiMessageCircle,
+  FiMail,
+  FiLayers,
+  FiBook
 } from "react-icons/fi";
 
 interface SidebarProps {
@@ -30,7 +36,24 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { openDrawer, showToast } = useStudio();
+  const studio = useStudioOptional();
+  const library = useLibraryOptional();
+
+  const showToast = (type: "success" | "error" | "info", message: string) => {
+    if (library) {
+      library.showToast(type, message);
+    } else if (studio) {
+      studio.showToast(type, message);
+    }
+  };
+
+  const openEnvironmentDrawer = () => {
+    if (library) {
+      library.openDrawer({ type: "environment" });
+    } else if (studio) {
+      studio.openDrawer({ type: "environment" });
+    }
+  };
 
   const [devPopoverOpen, setDevPopoverOpen] = useState(false);
   const devPopoverRef = useRef<HTMLDivElement>(null);
@@ -54,26 +77,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const isLibrary = pathname?.startsWith("/dashboard/library");
 
   const studioNavItems = [
-    { label: "Studio Overview", href: "/dashboard/studio", icon: FiActivity },
+    { label: "Studio Overview", href: "/dashboard/studio", icon: FiLayers },
     { label: "Studio Users", href: "/dashboard/studio/users", icon: FiUsers },
     { label: "Credits", href: "/dashboard/studio/credits", icon: FiCreditCard },
     { label: "Transactions", href: "/dashboard/studio/transactions", icon: FiFileText },
-    { label: "Activity Logs", href: "/dashboard/studio/activity", icon: FiFileText },
+    { label: "Activity Logs", href: "/dashboard/studio/activity", icon: FiActivity },
   ];
 
   const libraryNavItems = [
-    { label: "Library Overview", href: "/dashboard/library", icon: FiBookOpen },
+    { label: "Library Overview", href: "/dashboard/library", icon: FiLayout },
     { label: "Library Users", href: "/dashboard/library/users", icon: FiUsers },
-    { label: "Books", href: "/dashboard/library/books", icon: FiFileText },
-    { label: "Authors", href: "/dashboard/library/authors", icon: FiUsers },
-    { label: "Library Activity", href: "/dashboard/library/activity", icon: FiActivity },
+    // { label: "Author Profile", href: "/dashboard/library/authors", icon: FiUsers },
+    { label: "Books", href: "/dashboard/library/books", icon: FiBook },
+    { label: "Book Reviews", href: "/dashboard/library/reviews", icon: FiBookOpen },
+    { label: "Messages", href: "/dashboard/library/messages", icon: FiMail },
+    // { label: "Library Activity", href: "/dashboard/library/activity", icon: FiActivity },
   ];
 
   const platformNavItems = [
     { label: "Analytics & Insights", href: "/dashboard/studio/usage", icon: FiCompass },
     { label: "Team & Permissions", href: "/dashboard/test-auth", icon: FiShield },
     { label: "Platform Settings", href: "#settings", icon: FiSettings, action: () => showToast("info", "Opening Platform Settings modal...") },
-    { label: "API & Webhooks", href: "#api", icon: FiTerminal, action: () => openDrawer({ type: "serviceHealth", serviceId: "webhooks" }) },
+    { label: "API & Webhooks", href: "#api", icon: FiTerminal, action: () => (studio ? studio.openDrawer({ type: "serviceHealth", serviceId: "webhooks" }) : showToast("info", "API & Webhooks telemetry active.")) },
   ];
 
   const sidebarContent = (
@@ -105,7 +130,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-3">
           {!isLibrary ?
             <button
-              onClick={() => openDrawer({ type: "environment" })}
+              onClick={openEnvironmentDrawer}
               className="w-full text-left p-3 rounded-xl border border-[#E5E7EB] bg-[#FAF8F5] hover:border-[#D1D5DB] transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-xs mb-2">
@@ -124,7 +149,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </button>
             :
             <button
-              onClick={() => openDrawer({ type: "environment" })}
+              onClick={openEnvironmentDrawer}
               className="w-full text-left p-3 rounded-xl border border-[#E5E7EB] bg-[#FAF8F5] hover:border-[#D1D5DB] transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-xs mb-2">
